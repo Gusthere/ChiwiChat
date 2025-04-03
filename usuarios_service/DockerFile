@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
     unzip \
     git \
     curl \
+    mariadb-client \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) \
         pdo \
@@ -25,16 +26,19 @@ RUN apt-get update && apt-get install -y \
         xml \
         zip
 
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
 COPY . .
 
-RUN composer install --no-dev --optimize-autoloader
-
 COPY default.conf /etc/apache2/sites-available/000-default.conf
-
 RUN a2enmod rewrite
 
+RUN composer install --no-dev --no-interaction --optimize-autoloader \
+    && chown -R www-data:www-data /var/www/html
+
+HEALTHCHECK --interval=1m --timeout=10s \    
+  CMD curl -f http://localhost/ || exit 1
+    
 EXPOSE 80
