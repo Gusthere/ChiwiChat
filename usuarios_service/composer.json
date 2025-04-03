@@ -1,31 +1,29 @@
 {
-  "name": "chiwichat/users",
-  "description": "Sistema universitario de mensajería encriptada punto a punto con openssl",
-  "type": "api",
-  "autoload": {
-    "psr-4": {
-      "Chiwichat\\Users\\": "src/",
-      "Chiwichat\\Users\\Services\\": "src/services/",
-      "Chiwichat\\Users\\Utils\\": "src/utils/"
+    "name": "chiwichat/users",
+    "description": "Sistema universitario de mensajería encriptada punto a punto con openssl",
+    "type": "api",
+    "autoload": {
+        "psr-4": {
+            "Chiwichat\\Users\\": "src/",
+            "Chiwichat\\Users\\Services\\": "src/services/",
+            "Chiwichat\\Users\\Utils\\": "src/utils/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Gustavo Heredia",
+            "email": "171433163+Gusthere@users.noreply.github.com"
+        }
+    ],
+    "require": {
+        "firebase/php-jwt": "^6.0",
+        "vlucas/phpdotenv": "^5.0",
+        "respect/validation": "^2.0",
+        "robmorgan/phinx": "^0.16.6"
+    },
+    "scripts": {
+        "start": "php -S localhost:8080 -t public/",
+        "migrate": "./vendor/bin/phinx migrate",
+        "migrate:rollback": "./vendor/bin/phinx rollback "
     }
-  },
-  "authors": [
-    {
-      "name": "Gustavo Heredia",
-      "email": "171433163+Gusthere@users.noreply.github.com"
-    }
-  ],
-  "require": {
-    "firebase/php-jwt": "^6.0",
-    "vlucas/phpdotenv": "^5.0",
-    "respect/validation": "^2.0",
-    "robmorgan/phinx": "^0.16.6"
-  },
-  "scripts": {
-    "start": "php -S localhost:8080 -t public/",
-    "migrate": "docker-compose run --rm migrate_users",
-    "migrate:status": "docker-compose exec usuarios_service php vendor/bin/phinx status",
-    "migrate:rollback": "docker-compose exec usuarios_service php vendor/bin/phinx rollback",
-    "migrate:create": "docker-compose exec usuarios_service php vendor/bin/phinx create"
-  }
 }

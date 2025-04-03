@@ -87,10 +87,10 @@ class User {
             $startParam = "$searchTerm%";
     
             $stmt = $this->db->prepare("
-                SELECT id, username, email, nombre, apellido, key
+                SELECT id, username, email, nombre, apellido, `key`
                 FROM users 
                 WHERE username LIKE :search_username 
-                   OR email LIKE :search_email
+                OR email LIKE :search_email
                 LIMIT 10
             ");
     
