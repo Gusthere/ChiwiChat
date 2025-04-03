@@ -1,0 +1,26 @@
+{
+    "name": "chiwichat/users",
+    "description": "Sistema universitario de mensajería encriptada punto a punto con openssl",
+    "type": "api",
+    "autoload": {
+        "psr-4": {
+            "Chiwichat\\Users\\": "src/",
+            "Chiwichat\\Users\\Services\\": "src/services/",
+            "Chiwichat\\Users\\Utils\\": "src/utils/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Gustavo Heredia",
+            "email": "171433163+Gusthere@users.noreply.github.com"
+        }
+    ],
+    "require": {
+        "firebase/php-jwt": "^6.0",
+        "vlucas/phpdotenv": "^5.0",
+        "respect/validation": "^2.0"
+    },
+    "scripts": {
+        "start": "php -S localhost:8080 -t public/"
+    }
+}
