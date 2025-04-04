@@ -19,21 +19,24 @@ class User {
 
     public function createUser($data) {
         try {
+            // Configurar mensajes personalizados para cada regla
             v::arrayType()
-                ->key('username', v::alnum()->noWhitespace()->length(3, 30)->setName('Usuario'))
-                ->key('email', v::email()->setName('Correo electrónico'))
-                ->key('nombre', v::stringType()->length(2, 20)->setName('Nombre'))
-                ->key('apellido', v::stringType()->length(2, 20)->setName('Apellido'))
+                ->key('username', v::alnum()->noWhitespace()->length(3, 30)
+                    ->setName('Usuario')
+                    ->setTemplate('{{name}} debe contener solo letras y números (3-30 caracteres)'))
+                ->key('email', v::email()
+                    ->setName('Correo electrónico')
+                    ->setTemplate('{{name}} debe tener un formato válido'))
+                ->key('nombre', v::stringType()->length(2, 20)
+                    ->setName('Nombre')
+                    ->setTemplate('{{name}} debe tener entre 2 y 20 caracteres'))
+                ->key('apellido', v::stringType()->length(2, 20)
+                    ->setName('Apellido')
+                    ->setTemplate('{{name}} debe tener entre 2 y 20 caracteres'))
                 ->assert($data);
     
         } catch (NestedValidationException $e) {
-            $errors = $e->getMessages([
-                'alnum' => '{{name}} debe contener solo letras y números',
-                'noWhitespace' => '{{name}} no debe contener espacios',
-                'length' => '{{name}} debe tener entre {{minValue}} y {{maxValue}} caracteres',
-                'stringType' => '{{name}} debe ser texto',
-                'email' => '{{name}} debe ser un correo electrónico válido'
-            ]);
+            $errors = $e->getMessages();
             return HttpHelper::sendJsonResponse(["errores" => $errors], 400);
         }
     
@@ -73,73 +76,61 @@ class User {
 
     public function searchUsers($searchTerm) {
         try {
-            v::stringType()->length(2, 100)->setName('Término de búsqueda')->assert($searchTerm);
+            v::stringType()->length(2, 100)
+                ->setName('Término de búsqueda')
+                ->setTemplate('El término de búsqueda debe tener entre 2 y 100 caracteres')
+                ->assert($searchTerm);
         } catch (NestedValidationException $e) {
-            $errors = $e->getMessages([
-                'stringType' => 'El término de búsqueda debe ser texto',
-                'length' => 'El término de búsqueda debe tener entre {{minValue}} y {{maxValue}} caracteres'
-            ]);
-            return HttpHelper::sendJsonResponse(["errores" => $errors], 400);
+            return HttpHelper::sendJsonResponse(["errores" => $e->getMessages()], 400);
         }
     
         try {
             $searchParam = "%$searchTerm%";
-            $startParam = "$searchTerm%";
     
             $stmt = $this->db->prepare("
                 SELECT id, username, email, nombre, apellido, `key`
                 FROM users 
-                WHERE username LIKE :search_username 
-                OR email LIKE :search_email
+                WHERE username LIKE :username 
+                OR email LIKE :email
                 LIMIT 10
             ");
     
-            // Bind de parámetros con nombres únicos
-            $stmt->bindParam(':search_username', $searchParam, PDO::PARAM_STR);
-            $stmt->bindParam(':search_email', $searchParam, PDO::PARAM_STR);
-    
+            $stmt->bindParam(':username', $searchParam, PDO::PARAM_STR);
+            $stmt->bindParam(':email', $searchParam, PDO::PARAM_STR);
             $stmt->execute();
     
             $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-            if (empty($users)) {
-                return HttpHelper::sendJsonResponse(
-                    ["mensaje" => "No se encontraron usuarios"], 
-                    404
-                );
-            }
-    
             return HttpHelper::sendJsonResponse([
-                "mensaje" => "Usuarios encontrados",
+                "mensaje" => empty($users) ? "No se encontraron usuarios" : "Usuarios encontrados",
                 "total" => count($users),
                 "usuarios" => $users
-            ]);
+            ], empty($users) ? 404 : 200);
         } catch (PDOException $e) {
             error_log("Error en searchUsers: " . $e->getMessage());
             return HttpHelper::sendJsonResponse(
-                ["error" => "Error en la búsqueda: " . $e->getMessage()], 
+                ["error" => "Ha ocurrido un error en la búsqueda"], 
                 500
             );
         }
     }
+    
     public function login($username) {
         try {
-            v::stringType()->length(2, 100)->setName('Usuario')->assert($username);
+            v::stringType()->length(2, 100)
+                ->setName('Usuario')
+                ->setTemplate('El nombre de usuario o correo debe tener entre 2 y 100 caracteres')
+                ->assert($username);
         } catch (NestedValidationException $e) {
-            $errors = $e->getMessages([
-                'alnum' => '{{name}} debe contener solo letras y números',
-                'noWhitespace' => '{{name}} no debe contener espacios',
-                'length' => '{{name}} debe tener entre {{minValue}} y {{maxValue}} caracteres'
-            ]);
-            return HttpHelper::sendJsonResponse(["errores" => $errors], 400);
+            return HttpHelper::sendJsonResponse(["errores" => $e->getMessages()], 400);
         }
 
         try {
             $stmt = $this->db->prepare("
                 SELECT username 
                 FROM users 
-                WHERE username = :username
-                OR email = :email
+                WHERE username = :username OR email = :email
+                LIMIT 1
             ");
             $stmt->bindParam(':username', $username, PDO::PARAM_STR);
             $stmt->bindParam(':email', $username, PDO::PARAM_STR);
@@ -150,14 +141,15 @@ class User {
             if (!$user) {
                 return HttpHelper::sendJsonResponse(
                     ["error" => "Usuario no registrado"], 
-                    403
+                    404
                 );
             }
 
             $token = Auth::generateToken(["username" => $user["username"]]);
             return HttpHelper::sendJsonResponse([
                 "mensaje" => "Inicio de sesión exitoso",
-                "token" => $token
+                "token" => $token,
+                "usuario" => $user["username"]
             ]);
         } catch (PDOException $e) {
             return HttpHelper::sendJsonResponse(
@@ -168,44 +160,34 @@ class User {
     }
 
     public function checkUser() {
+        try {
         $headers = getallheaders();
         $authHeader = $headers['Authorization'] ?? '';
         
         if (!preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
-            return HttpHelper::sendJsonResponse(
-                ["error" => "Token de autorización no proporcionado o formato inválido"], 
-                401
-            );
+                throw new \Exception("Token no proporcionado");
         }
         
         $token = $matches[1];
-        
-        try {
             $decoded = Auth::decodeToken($token);
-            $username = $decoded['username'] ?? null;
             
-            if (!$username) {
-                return HttpHelper::sendJsonResponse(
-                    ["error" => "Token inválido: usuario no especificado"], 
-                    401
-                );
+            if (empty($decoded['username'])) {
+                throw new \Exception("Token inválido");
             }
             
             $stmt = $this->db->prepare("
                 SELECT username 
                 FROM users 
                 WHERE username = :username
+                LIMIT 1
             ");
-            $stmt->bindParam(':username', $username, PDO::PARAM_STR);
+            $stmt->bindParam(':username', $decoded['username'], PDO::PARAM_STR);
             $stmt->execute();
 
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$user) {
-                return HttpHelper::sendJsonResponse(
-                    ["error" => "Usuario no registrado en el sistema"], 
-                    403
-                );
+                throw new \Exception("Credenciales inválidas");
             }
             
             return HttpHelper::sendJsonResponse([
