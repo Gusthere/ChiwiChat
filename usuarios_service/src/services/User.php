@@ -10,14 +10,17 @@ use PDOException;
 use Respect\Validation\Validator as v;
 use Respect\Validation\Exceptions\NestedValidationException;
 
-class User {
+class User
+{
     private $db;
 
-    public function __construct() {
+    public function __construct()
+    {
         $this->db = Database::getInstance();
     }
 
-    public function createUser($data) {
+    public function createUser($data)
+    {
         try {
             // Configurar mensajes personalizados para cada regla
             v::arrayType()
@@ -34,28 +37,24 @@ class User {
                     ->setName('Apellido')
                     ->setTemplate('{{name}} debe tener entre 2 y 20 caracteres'))
                 ->assert($data);
-    
         } catch (NestedValidationException $e) {
             $errors = $e->getMessages();
             return HttpHelper::sendJsonResponse(["errores" => $errors], 400);
         }
-    
+
         try {
             $this->db->beginTransaction();
 
-            // Verificar si el usuario o email ya existen
-            $existingUser = $this->checkExistingUser($data['username'], $data['email']);
-            var_dump("prueba");
-            if ($existingUser) {
+            // Verificar credenciales existentes
+            $credentialErrors = $this->checkExistingCredentials($data['username'], $data['email']);
+            if ($credentialErrors) {
                 return HttpHelper::sendJsonResponse([
-                    "errores" => [
-                        $existingUser['type'] => ["Este {$existingUser['type']} ya está registrado"]
-                    ]
-                ], 409); // Código 409 Conflict
+                    "errores" => $credentialErrors
+                ], 409);
             }
-            // Generar llave secreta única
-            $secretKey = bin2hex(random_bytes(32)); // 64 caracteres hexadecimales
-    
+
+            // Resto del código de creación de usuario...
+            $secretKey = bin2hex(random_bytes(32));
             $stmt = $this->db->prepare("
                 INSERT INTO users (username, email, nombre, apellido, `key`) 
                 VALUES (:username, :email, :nombre, :apellido, :key)
@@ -66,46 +65,55 @@ class User {
             $stmt->bindParam(':apellido', $data['apellido'], PDO::PARAM_STR);
             $stmt->bindParam(':key', $secretKey, PDO::PARAM_STR);
             $stmt->execute();
-    
+
             $id = $this->db->lastInsertId();
             $this->db->commit();
-    
+
             return HttpHelper::sendJsonResponse([
                 "mensaje" => "Usuario creado correctamente",
                 "userId" => $id,
-                "key" => $secretKey // Opcional: devolver la llave generada
+                "key" => $secretKey
             ], 201);
         } catch (PDOException $e) {
             $this->db->rollBack();
             return HttpHelper::sendJsonResponse(
-                ["error" => "Error al crear el usuario: " . $e->getMessage()], 
+                ["error" => "Error al crear el usuario: " . $e->getMessage()],
                 500
             );
         }
     }
 
-    private function checkExistingUser($username, $email) {
+    private function checkExistingCredentials($username, $email)
+    {
         $stmt = $this->db->prepare("
-            SELECT
-                CASE
-                    WHEN username = :username_case THEN 'username'
-                    WHEN email = :email_case THEN 'email'
-                END as type
-            FROM users
-            WHERE username = :username_where OR email = :email_where
-            LIMIT 1
+            SELECT 
+                username,
+                email
+            FROM users 
+            WHERE username = :username OR email = :email
         ");
-    
-        $stmt->bindParam(':username_case', $username, PDO::PARAM_STR);
-        $stmt->bindParam(':email_case', $email, PDO::PARAM_STR);
-        $stmt->bindParam(':username_where', $username, PDO::PARAM_STR);
-        $stmt->bindParam(':email_where', $email, PDO::PARAM_STR);
-        $stmt->execute();
-    
-        return $stmt->fetch(PDO::FETCH_ASSOC);
-    }
 
-    public function searchUsers($searchTerm) {
+        $stmt->bindParam(':username', $username, PDO::PARAM_STR);
+        $stmt->bindParam(':email', $email, PDO::PARAM_STR);
+        $stmt->execute();
+
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $errors = [];
+
+        foreach ($results as $row) {
+            if ($row['username'] === $username) {
+                $errors['Usuario'] = ['Este Usuario ya está registrado'];
+            }
+            if ($row['email'] === $email) {
+                $errors['Correo electrónico'] = ['Este Correo electrónico ya está registrado'];
+            }
+        }
+
+        return empty($errors) ? null : $errors;
+    }
+    public function searchUsers($searchTerm)
+    {
         try {
             v::stringType()->length(2, 100)
                 ->setName('Término de búsqueda')
@@ -114,10 +122,10 @@ class User {
         } catch (NestedValidationException $e) {
             return HttpHelper::sendJsonResponse(["errores" => $e->getMessages()], 400);
         }
-    
+
         try {
             $searchParam = "%$searchTerm%";
-    
+
             $stmt = $this->db->prepare("
                 SELECT id, username, email, nombre, apellido, `key`
                 FROM users 
@@ -125,13 +133,13 @@ class User {
                 OR email LIKE :email
                 LIMIT 10
             ");
-    
+
             $stmt->bindParam(':username', $searchParam, PDO::PARAM_STR);
             $stmt->bindParam(':email', $searchParam, PDO::PARAM_STR);
             $stmt->execute();
-    
+
             $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
             return HttpHelper::sendJsonResponse([
                 "mensaje" => empty($users) ? "No se encontraron usuarios" : "Usuarios encontrados",
                 "total" => count($users),
@@ -140,13 +148,14 @@ class User {
         } catch (PDOException $e) {
             error_log("Error en searchUsers: " . $e->getMessage());
             return HttpHelper::sendJsonResponse(
-                ["error" => "Ha ocurrido un error en la búsqueda"], 
+                ["error" => "Ha ocurrido un error en la búsqueda"],
                 500
             );
         }
     }
-    
-    public function login($username) {
+
+    public function login($username)
+    {
         try {
             v::stringType()->length(2, 100)
                 ->setName('Usuario')
@@ -171,7 +180,7 @@ class User {
 
             if (!$user) {
                 return HttpHelper::sendJsonResponse(
-                    ["error" => "Usuario no registrado"], 
+                    ["error" => "Usuario no registrado"],
                     404
                 );
             }
@@ -184,28 +193,29 @@ class User {
             ]);
         } catch (PDOException $e) {
             return HttpHelper::sendJsonResponse(
-                ["error" => "Error al iniciar sesión: " . $e->getMessage()], 
+                ["error" => "Error al iniciar sesión: " . $e->getMessage()],
                 500
             );
         }
     }
 
-    public function checkUser() {
+    public function checkUser()
+    {
         try {
             $headers = getallheaders();
             $authHeader = $headers['Authorization'] ?? '';
-            
+
             if (!preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
                 throw new \Exception("Token no proporcionado");
             }
-            
+
             $token = $matches[1];
             $decoded = Auth::decodeToken($token);
-            
+
             if (empty($decoded['username'])) {
                 throw new \Exception("Token inválido");
             }
-            
+
             $stmt = $this->db->prepare("
                 SELECT username 
                 FROM users 
@@ -220,35 +230,36 @@ class User {
             if (!$user) {
                 throw new \Exception("Credenciales inválidas");
             }
-            
+
             return HttpHelper::sendJsonResponse([
                 "mensaje" => "Token válido",
                 "usuario" => $user['username']
             ]);
         } catch (\Exception $e) {
             return HttpHelper::sendJsonResponse(
-                ["error" => "Error al verificar el token: " . $e->getMessage()], 
+                ["error" => "Error al verificar el token: " . $e->getMessage()],
                 401
             );
         }
     }
 
-    public function Me() {
+    public function Me()
+    {
         try {
             $headers = getallheaders();
             $authHeader = $headers['Authorization'] ?? '';
-            
+
             if (!preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
                 throw new \Exception("Token no proporcionado");
             }
-            
+
             $token = $matches[1];
             $decoded = Auth::decodeToken($token);
-            
+
             if (empty($decoded['username'])) {
                 throw new \Exception("Token inválido");
             }
-            
+
             // Verificar que la clave del token coincida con la de la base de datos
             $stmt = $this->db->prepare("
                 SELECT *
@@ -264,14 +275,14 @@ class User {
             if (!$user) {
                 throw new \Exception("Credenciales inválidas");
             }
-            
+
             return HttpHelper::sendJsonResponse([
                 "mensaje" => "Datos del usuario",
                 "usuario" => $user
             ]);
         } catch (\Exception $e) {
             return HttpHelper::sendJsonResponse(
-                ["error" => $e->getMessage()], 
+                ["error" => $e->getMessage()],
                 401
             );
         }
