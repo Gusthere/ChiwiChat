@@ -201,4 +201,48 @@ class User {
             );
         }
     }
+
+    public function Me() {
+        try {
+            $headers = getallheaders();
+            $authHeader = $headers['Authorization'] ?? '';
+            
+            if (!preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
+                throw new \Exception("Token no proporcionado");
+            }
+            
+            $token = $matches[1];
+            $decoded = Auth::decodeToken($token);
+            
+            if (empty($decoded['username'])) {
+                throw new \Exception("Token inválido");
+            }
+            
+            // Verificar que la clave del token coincida con la de la base de datos
+            $stmt = $this->db->prepare("
+                SELECT *
+                FROM users 
+                WHERE username = :username
+                LIMIT 1
+            ");
+            $stmt->bindParam(':username', $decoded['username'], PDO::PARAM_STR);
+            $stmt->execute();
+
+            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$user) {
+                throw new \Exception("Credenciales inválidas");
+            }
+            
+            return HttpHelper::sendJsonResponse([
+                "mensaje" => "Datos del usuario",
+                "usuario" => $user
+            ]);
+        } catch (\Exception $e) {
+            return HttpHelper::sendJsonResponse(
+                ["error" => $e->getMessage()], 
+                401
+            );
+        }
+    }
 }

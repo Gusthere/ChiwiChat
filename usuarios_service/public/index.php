@@ -35,6 +35,11 @@ try {
             break;
 
         // GET /users/{username} - Obtener usuario
+        case $requestUri === '/users/me' && $method === 'GET':
+            $userService->Me();
+            break;
+
+        // GET /users/{username} - Obtener usuario
         case preg_match('#^/users/([\w-]+)$#', $requestUri, $matches) && $method === 'GET':
             $userService->searchUsers($matches[1]);
             break;
