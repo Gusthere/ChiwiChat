@@ -1,0 +1,17 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Redirige todas las solicitudes a public/index.php
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ public/index.php/$1 [L]
+
+    # Previene el acceso directo a archivos .env
+    <Files .env>
+        Require all denied
+    </Files>
+
+    # Previene el acceso directo a la carpeta src
+    RewriteRule ^src/ - [F,L]
+</IfModule>
