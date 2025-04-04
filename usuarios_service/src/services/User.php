@@ -103,10 +103,10 @@ class User
 
         foreach ($results as $row) {
             if ($row['username'] === $username) {
-                $errors['Usuario'] = ['Este Usuario ya está registrado'];
+                $errors['Usuario'] = 'Este Usuario ya está registrado';
             }
             if ($row['email'] === $email) {
-                $errors['Correo electrónico'] = ['Este Correo electrónico ya está registrado'];
+                $errors['Correo electrónico'] = 'Este Correo electrónico ya está registrado';
             }
         }
 
