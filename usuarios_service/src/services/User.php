@@ -42,7 +42,17 @@ class User {
     
         try {
             $this->db->beginTransaction();
-    
+
+            // Verificar si el usuario o email ya existen
+            $existingUser = $this->checkExistingUser($data['username'], $data['email']);
+            var_dump("prueba");
+            if ($existingUser) {
+                return HttpHelper::sendJsonResponse([
+                    "errores" => [
+                        $existingUser['type'] => ["Este {$existingUser['type']} ya está registrado"]
+                    ]
+                ], 409); // Código 409 Conflict
+            }
             // Generar llave secreta única
             $secretKey = bin2hex(random_bytes(32)); // 64 caracteres hexadecimales
     
@@ -72,6 +82,27 @@ class User {
                 500
             );
         }
+    }
+
+    private function checkExistingUser($username, $email) {
+        $stmt = $this->db->prepare("
+            SELECT
+                CASE
+                    WHEN username = :username_case THEN 'username'
+                    WHEN email = :email_case THEN 'email'
+                END as type
+            FROM users
+            WHERE username = :username_where OR email = :email_where
+            LIMIT 1
+        ");
+    
+        $stmt->bindParam(':username_case', $username, PDO::PARAM_STR);
+        $stmt->bindParam(':email_case', $email, PDO::PARAM_STR);
+        $stmt->bindParam(':username_where', $username, PDO::PARAM_STR);
+        $stmt->bindParam(':email_where', $email, PDO::PARAM_STR);
+        $stmt->execute();
+    
+        return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
     public function searchUsers($searchTerm) {
@@ -127,7 +158,7 @@ class User {
 
         try {
             $stmt = $this->db->prepare("
-                SELECT username 
+                SELECT username
                 FROM users 
                 WHERE username = :username OR email = :email
                 LIMIT 1
@@ -161,14 +192,14 @@ class User {
 
     public function checkUser() {
         try {
-        $headers = getallheaders();
-        $authHeader = $headers['Authorization'] ?? '';
-        
-        if (!preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
+            $headers = getallheaders();
+            $authHeader = $headers['Authorization'] ?? '';
+            
+            if (!preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
                 throw new \Exception("Token no proporcionado");
-        }
-        
-        $token = $matches[1];
+            }
+            
+            $token = $matches[1];
             $decoded = Auth::decodeToken($token);
             
             if (empty($decoded['username'])) {
