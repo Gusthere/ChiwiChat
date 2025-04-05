@@ -1,0 +1,30 @@
+{
+    "name": "chiwichat/chats",
+    "description": "Sistema universitario de mensajería encriptada punto a punto con openssl",
+    "type": "api",
+    "autoload": {
+        "psr-4": {
+            "Chiwichat\\Chats\\": "src/",
+            "Chiwichat\\Chats\\Services\\": "src/services/",
+            "Chiwichat\\Chats\\Utils\\": "src/utils/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Gustavo Heredia",
+            "email": "171433163+Gusthere@users.noreply.github.com"
+        }
+    ],
+    "require": {
+        "vlucas/phpdotenv": "^5.0",
+        "respect/validation": "^2.0",
+        "robmorgan/phinx": "^0.16.6",
+        "firebase/php-jwt": "^6.11",
+        "mongodb/mongodb": "^1.21"
+    },
+    "scripts": {
+        "start": "php -S localhost:8080 -t public/",
+        "migrate": "./vendor/bin/phinx migrate",
+        "migrate:rollback": "./vendor/bin/phinx rollback "
+    }
+}
