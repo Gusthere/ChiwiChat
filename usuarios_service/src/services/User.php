@@ -167,7 +167,7 @@ class User
 
         try {
             $stmt = $this->db->prepare("
-                SELECT username
+                SELECT username, id
                 FROM users 
                 WHERE username = :username OR email = :email
                 LIMIT 1
@@ -185,7 +185,7 @@ class User
                 );
             }
 
-            $token = Auth::generateToken(["username" => $user["username"]]);
+            $token = Auth::generateToken(["username" => $user["username"], "id" => $user["id"]]);
             return HttpHelper::sendJsonResponse([
                 "mensaje" => "Inicio de sesión exitoso",
                 "token" => $token,
