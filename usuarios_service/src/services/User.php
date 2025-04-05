@@ -144,7 +144,7 @@ class User
                 "mensaje" => empty($users) ? "No se encontraron usuarios" : "Usuarios encontrados",
                 "total" => count($users),
                 "usuarios" => $users
-            ], empty($users) ? 404 : 200);
+            ], empty($users) ? 204 : 200);
         } catch (PDOException $e) {
             error_log("Error en searchUsers: " . $e->getMessage());
             return HttpHelper::sendJsonResponse(

@@ -12,7 +12,6 @@ header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 
-// Manejo de CORS para preflight
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
     exit;
@@ -60,6 +59,7 @@ try {
                 "error" => "Endpoint no encontrado",
                 "endpoints_disponibles" => [
                     "POST /users" => "Crear nuevo usuario",
+                    "GET /users/me" => "Ver datos del usuario",
                     "GET /users/{username}" => "Obtener información de usuario",
                     "POST /login" => "Iniciar sesión",
                     "GET /auth/check" => "Verificar token JWT"
