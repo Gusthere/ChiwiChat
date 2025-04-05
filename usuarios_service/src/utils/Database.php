@@ -5,6 +5,7 @@ namespace Chiwichat\Users\Utils;
 use PDO;
 use PDOException;
 use Dotenv\Dotenv;
+use Chiwichat\Users\Utils\Env;
 use Chiwichat\Users\Utils\HttpHelper;
 
 class Database {
@@ -15,11 +16,11 @@ class Database {
         $dotenv = Dotenv::createImmutable(__DIR__ . '/../../');
         $dotenv->load();
 
-        $host = $_ENV['DB_HOST'];
-        $dbname = $_ENV['DB_DATABASE'];
-        $username = $_ENV['DB_USER'];
-        $password = $_ENV['DB_PASSWORD'];
-        $port = $_ENV['DB_USERS_PORT'] ?? '3306'; // Usa 3306 como valor por defecto
+        $host = Env::env('DB_HOST');
+        $dbname = Env::env('DB_DATABASE');
+        $username = Env::env('DB_USER');
+        $password = Env::env('DB_PASSWORD');
+        $port = Env::env('DB_USERS_PORT') ?? '3306'; // Usa 3306 como valor por defecto
 
         try {
             $this->db = new PDO(

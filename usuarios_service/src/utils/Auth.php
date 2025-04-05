@@ -6,6 +6,7 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Exception;
 use Dotenv\Dotenv;
+use Chiwichat\Users\Utils\Env;
 
 
 class Auth {
@@ -18,12 +19,12 @@ class Auth {
             'exp' => time() + (60 * 60), // 1 hora
             'data' => $data
         ];
-        return JWT::encode($payload, $_ENV['JWT_SECRET'], 'HS256');
+        return JWT::encode($payload, Env::env('JWT_SECRET'), 'HS256');
     }
 
     public static function decodeToken($token) {
         try {
-            $decoded = JWT::decode($token, new Key($_ENV['JWT_SECRET'], 'HS256'));
+            $decoded = JWT::decode($token, new Key(Env::env('JWT_SECRET'), 'HS256'));
             $decodedArray = json_decode(json_encode($decoded), true);  
             return $decodedArray['data'] ?? null;
         } catch (Exception $e) {
