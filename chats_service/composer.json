@@ -18,7 +18,8 @@
     "require": {
         "vlucas/phpdotenv": "^5.0",
         "respect/validation": "^2.0",
-        "robmorgan/phinx": "^0.16.6"
+        "robmorgan/phinx": "^0.16.6",
+        "firebase/php-jwt": "^6.11"
     },
     "scripts": {
         "start": "php -S localhost:8080 -t public/",

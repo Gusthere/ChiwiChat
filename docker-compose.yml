@@ -92,34 +92,34 @@ services:
       retries: 5
     command: apache2-foreground  # Solo inicia Apache, sin migraciones automáticas
 
-  # chats_service:
-  #   build: 
-  #     context: ./chats_service
-  #     dockerfile: DockerFile
-  #   container_name: chats-service
-  #   restart: unless-stopped
-  #   volumes:
-  #     - ./chats_service:/var/www/html
-  #   environment:
-  #     - DB_HOST=db_chats
-  #     - DB_USER=root
-  #     - DB_PASSWORD=${MYSQL_ROOT_PASSWORD_CHATS}
-  #     - DB_DATABASE=${MYSQL_DATABASE_CHATS}
-  #     - DB_CHATS_PORT=3306
-  #     - APP_ENV=production
-  #     - APP_DEBUG=false
-  #   networks:
-  #     chiwi_network:
-  #       aliases:
-  #         - chats_service
-  #   ports:
-  #     - "8888:80"
-  #   depends_on:
-  #     db_chats:
-  #       condition: service_healthy
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost/health"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #   command: apache2-foreground  # Solo inicia Apache, sin migraciones automáticas
+  chats_service:
+    build: 
+      context: ./chats_service
+      dockerfile: DockerFile
+    container_name: chats-service
+    restart: unless-stopped
+    volumes:
+      - ./chats_service:/var/www/html
+    environment:
+      - DB_HOST=db_chats
+      - DB_USER=root
+      - DB_PASSWORD=${MYSQL_ROOT_PASSWORD_CHATS}
+      - DB_DATABASE=${MYSQL_DATABASE_CHATS}
+      - DB_CHATS_PORT=3306
+      - APP_ENV=production
+      - APP_DEBUG=false
+    networks:
+      chiwi_network:
+        aliases:
+          - chats_service
+    ports:
+      - "8889:80"
+    depends_on:
+      db_chats:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: apache2-foreground  # Solo inicia Apache, sin migraciones automáticas
