@@ -30,10 +30,6 @@ class CreateUsersTable extends AbstractMigration
             'limit' => 100,
             'null' => false
         ])
-        ->addColumn('key', 'string', [
-            'limit' => 255,
-            'null' => false
-        ])
         ->addColumn('create_time', 'datetime', [
             'default' => 'CURRENT_TIMESTAMP',
             'null' => true,

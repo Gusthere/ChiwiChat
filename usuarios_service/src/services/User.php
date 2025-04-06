@@ -53,17 +53,14 @@ class User
                 ], 409);
             }
 
-            // Resto del código de creación de usuario...
-            $secretKey = bin2hex(random_bytes(32));
             $stmt = $this->db->prepare("
-                INSERT INTO users (username, email, nombre, apellido, `key`) 
-                VALUES (:username, :email, :nombre, :apellido, :key)
+                INSERT INTO users (username, email, nombre, apellido) 
+                VALUES (:username, :email, :nombre, :apellido)
             ");
             $stmt->bindParam(':username', $data['username'], PDO::PARAM_STR);
             $stmt->bindParam(':email', $data['email'], PDO::PARAM_STR);
             $stmt->bindParam(':nombre', $data['nombre'], PDO::PARAM_STR);
             $stmt->bindParam(':apellido', $data['apellido'], PDO::PARAM_STR);
-            $stmt->bindParam(':key', $secretKey, PDO::PARAM_STR);
             $stmt->execute();
 
             $id = $this->db->lastInsertId();
@@ -71,8 +68,7 @@ class User
 
             return HttpHelper::sendJsonResponse([
                 "mensaje" => "Usuario creado correctamente",
-                "userId" => $id,
-                "key" => $secretKey
+                "userId" => $id
             ], 201);
         } catch (PDOException $e) {
             $this->db->rollBack();
@@ -127,7 +123,7 @@ class User
             $searchParam = "%$searchTerm%";
 
             $stmt = $this->db->prepare("
-                SELECT id, username, email, nombre, apellido, `key`
+                SELECT id, username, email, nombre, apellido
                 FROM users 
                 WHERE username LIKE :username 
                 OR email LIKE :email
