@@ -106,15 +106,6 @@ class Chat
                 return HttpHelper::sendJsonResponse(["error" => "No participante"], 403);
             }
             
-            $conversation = $this->conversationsCollection->findOne(['_id' => $conversationId]);
-
-            if (!$conversation) {
-                return HttpHelper::sendJsonResponse(
-                    ["error" => "Conversación no encontrada"],
-                    404
-                );
-            }
-
             return HttpHelper::sendJsonResponse([
                 "mensaje" => "Conversación encontrada",
                 "conversation" => [

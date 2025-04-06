@@ -27,7 +27,7 @@ class Database {
         try {
             // Crear conexión a MongoDB
             $this->client = new Client(
-                "mongodb://{$username}:{$password}@{$host}:27017",
+                "{$database}://{$username}:{$password}@{$host}:27017",
                 [
                     'authSource' => 'admin',
                     'connectTimeoutMS' => 5000,

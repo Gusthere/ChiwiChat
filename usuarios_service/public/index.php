@@ -72,9 +72,9 @@ try {
             break;
 
         // GET /auth/check - Verificar token (protegido)
-        case $requestUri === '/auth/check' && $method === 'GET':
-            $userService->checkUser();
-            break;
+        // case $requestUri === '/auth/check' && $method === 'GET':
+        //     $userService->checkUser();
+        //     break;
 
         default:
             HttpHelper::sendJsonResponse([
@@ -84,7 +84,7 @@ try {
                     "GET /users/me" => "Ver datos del usuario",
                     "GET /users/{username}" => "Obtener información de usuario",
                     "POST /login" => "Iniciar sesión",
-                    "GET /auth/check" => "Verificar token JWT"
+                    // "GET /auth/check" => "Verificar token JWT"
                 ]
             ], 404);
     }

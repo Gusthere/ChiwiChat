@@ -75,7 +75,7 @@ class User
             return HttpHelper::sendJsonResponse([
                 "mensaje" => "Usuario creado correctamente",
                 "userId" => $id
-            ], 201);
+            ], 201); //Creado correctamente
         } catch (PDOException $e) {
             $this->db->rollBack();
             return HttpHelper::sendJsonResponse(
@@ -201,35 +201,35 @@ class User
         }
     }
 
-    public function checkUser()
-    {
-        try {
-            $stmt = $this->db->prepare("
-                SELECT username 
-                FROM users 
-                WHERE username = :username
-                LIMIT 1
-            ");
-            $stmt->bindParam(':username', $this->userData['username'], PDO::PARAM_STR);
-            $stmt->execute();
+    // public function checkUser()
+    // {
+    //     try {
+    //         $stmt = $this->db->prepare("
+    //             SELECT username 
+    //             FROM users 
+    //             WHERE username = :username
+    //             LIMIT 1
+    //         ");
+    //         $stmt->bindParam(':username', $this->userData['username'], PDO::PARAM_STR);
+    //         $stmt->execute();
 
-            $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    //         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-            if (!$user) {
-                throw new \Exception("Credenciales inválidas");
-            }
+    //         if (!$user) {
+    //             throw new \Exception("Credenciales inválidas");
+    //         }
 
-            return HttpHelper::sendJsonResponse([
-                "mensaje" => "Token válido",
-                "usuario" => $user['username']
-            ]);
-        } catch (\Exception $e) {
-            return HttpHelper::sendJsonResponse(
-                ["error" => "Error al verificar el token: " . $e->getMessage()],
-                401
-            );
-        }
-    }
+    //         return HttpHelper::sendJsonResponse([
+    //             "mensaje" => "Token válido",
+    //             "usuario" => $user['username']
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         return HttpHelper::sendJsonResponse(
+    //             ["error" => "Error al verificar el token: " . $e->getMessage()],
+    //             401
+    //         );
+    //     }
+    // }
 
     public function Me()
     {
