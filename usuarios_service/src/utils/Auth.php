@@ -49,7 +49,7 @@ class Auth
             if (!preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
                 throw new \Exception(
                     'Formato de autorización inválido. Se esperaba: Bearer {token}', 
-                    400 // Bad Request
+                    400
                 );
             }
 
