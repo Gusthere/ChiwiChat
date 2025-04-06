@@ -114,8 +114,7 @@ class Auth
     private static function handleError(string $message, int $statusCode = 401, array $additionalData = [])
     {
         $responseData = [
-            'error' => $message,
-            'code' => $statusCode
+            'error' => $message
         ];
 
         if (!empty($additionalData)) {

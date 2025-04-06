@@ -116,6 +116,7 @@ class Chat
             }
 
             return HttpHelper::sendJsonResponse([
+                "mensaje" => "Conversación encontrada",
                 "conversation" => [
                     "conversation_id" => (string) $conversation->_id,
                     "user1_id" => $conversation->user1_id,
@@ -153,6 +154,7 @@ class Chat
             }, $conversations);
 
             return HttpHelper::sendJsonResponse([
+                "mensaje" => "Mensajes encontrados",
                 "conversations" => $formattedConversations,
                 "total" => count($formattedConversations)
             ]);
@@ -249,6 +251,7 @@ class Chat
             }, $messages);
 
             return HttpHelper::sendJsonResponse([
+                "mensaje" => "mensajes encontrados",
                 "mensajes" => $formattedMessages,
             ]);
         } catch (NestedValidationException $e) {

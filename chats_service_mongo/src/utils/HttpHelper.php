@@ -9,6 +9,6 @@ class HttpHelper {
 
     public static function sendJsonResponse($data, $statusCode = 200) {
         http_response_code($statusCode);
-        echo json_encode(["message" => $data]);
+        echo json_encode($data);
     }
 }
