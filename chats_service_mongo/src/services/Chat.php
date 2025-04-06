@@ -94,6 +94,18 @@ class Chat
                 return HttpHelper::sendJsonResponse(["error" => "ID de conversación inválido"], 400);
             }
 
+            $conversation = $this->conversationsCollection->findOne([
+                '_id' => $conversationId,
+                '$or' => [
+                    ['user1_id' => (int) $this->userData['id']],
+                    ['user2_id' => (int) $this->userData['id']],
+                ]
+            ]);
+
+            if (!$conversation) {
+                return HttpHelper::sendJsonResponse(["error" => "No participante"], 403);
+            }
+            
             $conversation = $this->conversationsCollection->findOne(['_id' => $conversationId]);
 
             if (!$conversation) {
