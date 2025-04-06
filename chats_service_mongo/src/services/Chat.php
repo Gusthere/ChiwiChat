@@ -14,11 +14,17 @@ class Chat
 {
     private $db;
     private $conversationsCollection;
+    private $userData;
 
     public function __construct()
     {
         $this->db = Database::getInstance();
         $this->conversationsCollection = $this->db->selectCollection('conversations');
+    }
+
+    public function setUserData($userData)
+    {
+        $this->userData = $userData;
     }
 
     public function createConversation($data)
@@ -30,24 +36,10 @@ class Chat
                     ->setTemplate('{{name}} debe ser un número entero positivo'))
                 ->assert($data);
 
-            $headers = getallheaders();
-            $authHeader = $headers['Authorization'] ?? '';
-
-            if (!preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
-                throw new \Exception("Token no proporcionado");
-            }
-
-            $token = $matches[1];
-            $decoded = Auth::decodeToken($token);
-
-            if (empty($decoded['id'])) {
-                throw new \Exception("Token inválido");
-            }
-
             $existingConversation = $this->conversationsCollection->findOne([
                 '$or' => [
-                    ['user1_id' => (int) $decoded['id'], 'user2_id' => (int) $data['user_id']],
-                    ['user1_id' => (int) $data['user_id'], 'user2_id' => (int) $decoded['id']],
+                    ['user1_id' => (int) $this->userData['id'], 'user2_id' => (int) $data['user_id']],
+                    ['user1_id' => (int) $data['user_id'], 'user2_id' => (int) $this->userData['id']],
                 ]
             ]);
 
@@ -59,7 +51,7 @@ class Chat
             }
 
             $insertResult = $this->conversationsCollection->insertOne([
-                'user1_id' => (int) $decoded['id'],
+                'user1_id' => (int) $this->userData['id'],
                 'user2_id' => (int) $data['user_id'],
                 'created_at' => new UTCDateTime(),
                 'messages' => []
@@ -132,24 +124,10 @@ class Chat
     public function getMyConversations()
     {
         try {
-            $headers = getallheaders();
-            $authHeader = $headers['Authorization'] ?? '';
-
-            if (!preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
-                throw new \Exception("Token no proporcionado");
-            }
-
-            $token = $matches[1];
-            $decoded = Auth::decodeToken($token);
-
-            if (empty($decoded['id'])) {
-                throw new \Exception("Token inválido");
-            }
-
             $conversations = $this->conversationsCollection->find([
                 '$or' => [
-                    ['user1_id' => (int) $decoded['id']],
-                    ['user2_id' => (int) $decoded['id']],
+                    ['user1_id' => (int) $this->userData['id']],
+                    ['user2_id' => (int) $this->userData['id']],
                 ]
             ])->toArray();
 
@@ -181,21 +159,6 @@ class Chat
                 ->key('conversation_id', v::stringType()->notEmpty())
                 ->key('content', v::stringType()->notEmpty())
                 ->assert($data);
-
-            $headers = getallheaders();
-            $authHeader = $headers['Authorization'] ?? '';
-
-            if (!preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
-                throw new \Exception("Token no proporcionado");
-            }
-
-            $token = $matches[1];
-            $decoded = Auth::decodeToken($token);
-
-            if (empty($decoded['id'])) {
-                throw new \Exception("Token inválido");
-            }
-
             try {
                 $conversationId = new ObjectId($data['conversation_id']);
             } catch (\MongoDB\Driver\Exception\InvalidArgumentException $e) {
@@ -205,8 +168,8 @@ class Chat
             $conversation = $this->conversationsCollection->findOne([
                 '_id' => $conversationId,
                 '$or' => [
-                    ['user1_id' => (int) $decoded['id']],
-                    ['user2_id' => (int) $decoded['id']],
+                    ['user1_id' => (int) $this->userData['id']],
+                    ['user2_id' => (int) $this->userData['id']],
                 ]
             ]);
 
@@ -220,7 +183,7 @@ class Chat
                 ['$push' => [
                     'messages' => [
                         'message_id' => $newMessageId,
-                        'sender_id' => (int) $decoded['id'],
+                        'sender_id' => (int) $this->userData['id'],
                         'encrypted_content' => $data['content'],
                         'sent_at' => new UTCDateTime(),
                     ]
@@ -247,20 +210,6 @@ class Chat
         try {
             v::stringType()->notEmpty()->assert($conversationId);
 
-            $headers = getallheaders();
-            $authHeader = $headers['Authorization'] ?? '';
-
-            if (!preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
-                throw new \Exception("Token no proporcionado");
-            }
-
-            $token = $matches[1];
-            $decoded = Auth::decodeToken($token);
-
-            if (empty($decoded['id'])) {
-                throw new \Exception("Token inválido");
-            }
-
             try {
                 $objectIdConversationId = new ObjectId($conversationId);
             } catch (\MongoDB\Driver\Exception\InvalidArgumentException $e) {
@@ -270,8 +219,8 @@ class Chat
             $conversation = $this->conversationsCollection->findOne([
                 '_id' => $objectIdConversationId,
                 '$or' => [
-                    ['user1_id' => (int) $decoded['id']],
-                    ['user2_id' => (int) $decoded['id']],
+                    ['user1_id' => (int) $this->userData['id']],
+                    ['user2_id' => (int) $this->userData['id']],
                 ]
             ]);
 

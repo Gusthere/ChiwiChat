@@ -8,14 +8,14 @@ use Dotenv\Dotenv;
 use Chiwichat\Users\Utils\Env;
 use Chiwichat\Users\Utils\HttpHelper;
 
+$dotenv = Dotenv::createImmutable(__DIR__ . '/../../');
+$dotenv->load();
+
 class Database {
     private static $instance;
     private $db;
     
     private function __construct() {
-        $dotenv = Dotenv::createImmutable(__DIR__ . '/../../');
-        $dotenv->load();
-
         $host = Env::env('DB_HOST');
         $dbname = Env::env('DB_DATABASE');
         $username = Env::env('DB_USER');

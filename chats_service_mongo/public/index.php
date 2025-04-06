@@ -1,15 +1,17 @@
 <?php
+
 declare(strict_types=1);
 
 require __DIR__ . '/../vendor/autoload.php';
 
-use Chiwichat\Chats\Services\Chat; // Usamos la clase fusionada
+use Chiwichat\Chats\Services\Chat;
 use Chiwichat\Chats\Utils\HttpHelper;
+use Chiwichat\Chats\Utils\Auth;
 
 // Configuración de headers
 header("Content-Type: application/json");
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS"); // Ajustamos los métodos permitidos
+header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -21,35 +23,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $method = $_SERVER['REQUEST_METHOD'];
 
-// Instancia del servicio fusionado
+// Validar token JWT para todas las rutas
+$userData = Auth::validateToken();
+
+// Instancia del servicio fusionado con datos del usuario
 $chat = new Chat();
+
+// Pasar datos del usuario al servicio si es necesario
+$chat->setUserData($userData);
 
 // Enrutamiento principal
 try {
     switch (true) {
-        // POST /conversations - Crear nueva conversación
+        // POST /conversations - Crear nueva conversación (protegido)
         case $requestUri === '/conversations' && $method === 'POST':
             $data = HttpHelper::getJsonData();
             $chat->createConversation($data);
             break;
 
-        // GET /conversations - Obtener conversaciones del usuario
+        // GET /conversations - Obtener conversaciones del usuario (protegido)
         case $requestUri === '/conversations' && $method === 'GET':
             $chat->getMyConversations();
             break;
 
-        // GET /conversations/{id} - Obtener conversación específica (sin mensajes)
+        // GET /conversations/{id} - Obtener conversación específica (protegido)
         case preg_match('#^/conversations/([a-f\d]{24})$#i', $requestUri, $matches) && $method === 'GET':
             $chat->getConversation(['conversation_id' => $matches[1]]);
             break;
 
-        // POST /conversations/{id}/messages - Enviar mensaje a una conversación
+        // POST /messages - Enviar mensaje a una conversación (protegido)
         case $requestUri === '/messages' && $method === 'POST':
             $data = HttpHelper::getJsonData();
             $chat->sendMessage($data);
             break;
 
-        // GET /conversations/{id}/messages - Obtener mensajes de una conversación
+        // GET /conversations/{id}/messages - Obtener mensajes de una conversación (protegido)
         case preg_match('#^/conversations/([a-f\d]{24})/messages$#i', $requestUri, $matches) && $method === 'GET':
             $chat->getConversationMessages($matches[1]);
             break;

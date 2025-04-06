@@ -8,14 +8,15 @@ use Dotenv\Dotenv;
 use Chiwichat\Chats\Utils\Env;
 use Chiwichat\Chats\Utils\HttpHelper;
 
+$dotenv = Dotenv::createImmutable(__DIR__ . '/../../');
+$dotenv->load();
+
 class Database {
     private static $instance;
     private $client;
     private $db;
     
     private function __construct() {
-        $dotenv = Dotenv::createImmutable(__DIR__ . '/../../');
-        $dotenv->load();
 
         // Configuración para MongoDB
         $host = Env::env('MONGO_HOST');

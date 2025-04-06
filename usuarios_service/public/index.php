@@ -5,6 +5,7 @@ require __DIR__ . '/../vendor/autoload.php';
 
 use Chiwichat\Users\Services\User;
 use Chiwichat\Users\Utils\HttpHelper;
+use Chiwichat\Users\Utils\Auth;
 
 // Configuración de headers
 header("Content-Type: application/json");
@@ -24,32 +25,53 @@ $method = $_SERVER['REQUEST_METHOD'];
 // Instancia del servicio
 $userService = new User();
 
+// Endpoints que NO requieren autenticación
+$publicEndpoints = [
+    'POST /users' => true,    // Crear usuario
+    'POST /login' => true     // Login
+];
+
+// Verificar si la ruta actual requiere autenticación
+$currentRoute = "$method $requestUri";
+
+// Para rutas con parámetros como GET /users/{username}
+if ($method === 'GET' && preg_match('#^/users/([\w-]+)$#', $requestUri)) {
+    $currentRoute = 'GET /users/{username}';
+}
+
+if (!isset($publicEndpoints[$currentRoute])) {
+    // Validar token JWT para rutas protegidas
+    $userData = Auth::validateToken();
+    // Pasar los datos del usuario al servicio si es necesario
+    $userService->setUserData($userData);
+}
+
 // Enrutamiento principal
 try {
     switch (true) {
-        // POST /users - Crear usuario
+        // POST /users - Crear usuario (público)
         case $requestUri === '/users' && $method === 'POST':
             $data = HttpHelper::getJsonData();
             $userService->createUser($data);
             break;
 
-        // GET /users/{username} - Obtener usuario
+        // GET /users/me - Obtener mi usuario (protegido)
         case $requestUri === '/users/me' && $method === 'GET':
             $userService->Me();
             break;
 
-        // GET /users/{username} - Obtener usuario
+        // GET /users/{username} - Obtener usuario (protegido)
         case preg_match('#^/users/([\w-]+)$#', $requestUri, $matches) && $method === 'GET':
             $userService->searchUsers($matches[1]);
             break;
 
-        // POST /login - Autenticación
+        // POST /login - Autenticación (público)
         case $requestUri === '/login' && $method === 'POST':
             $data = HttpHelper::getJsonData();
             $userService->login($data['username'] ?? '');
             break;
 
-        // GET /auth/check - Verificar token
+        // GET /auth/check - Verificar token (protegido)
         case $requestUri === '/auth/check' && $method === 'GET':
             $userService->checkUser();
             break;
