@@ -62,7 +62,7 @@ services:
       start_period: 30s
 
   mongodb:
-    image: mongo:6.0
+    image: mongo:4.4
     container_name: mongodb
     restart: always
     environment:
@@ -147,34 +147,34 @@ services:
       retries: 5
     command: apache2-foreground  # Solo inicia Apache, sin migraciones automáticas
   
-  # chats_service_mongo:
-  #   build: 
-  #     context: ./chats_service_mongo
-  #     dockerfile: DockerFile
-  #   container_name: chats-service-mongo
-  #   restart: unless-stopped
-  #   volumes:
-  #     - ./chats_service_mongo:/var/www/html  # Crea esta carpeta
-  #   environment:
-  #     - DB_TYPE=mongodb  # Nueva variable para identificar el tipo de DB
-  #     - MONGO_HOST=mongodb
-  #     - MONGO_USER=root
-  #     - MONGO_PASSWORD=${MONGO_ROOT_PASSWORD}
-  #     - MONGO_DATABASE=${MONGO_DATABASE}
-  #     - APP_ENV=production
-  #     - APP_DEBUG=false
-  #   networks:
-  #     chiwi_network:
-  #       aliases:
-  #         - chats_service_mongo
-  #   ports:
-  #     - "8890:80"  # Puerto diferente al original
-  #   depends_on:
-  #     mongodb:
-  #       condition: service_healthy
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost/health"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #   command: apache2-foreground
+  chats_service_mongo:
+    build: 
+      context: ./chats_service_mongo
+      dockerfile: DockerFile
+    container_name: chats-service-mongo
+    restart: unless-stopped
+    volumes:
+      - ./chats_service_mongo:/var/www/html  # Crea esta carpeta
+    environment:
+      - DB_TYPE=mongodb  # Nueva variable para identificar el tipo de DB
+      - MONGO_HOST=mongodb
+      - MONGO_USER=root
+      - MONGO_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_DATABASE=${MONGO_DATABASE}
+      - APP_ENV=production
+      - APP_DEBUG=false
+    networks:
+      chiwi_network:
+        aliases:
+          - chats_service_mongo
+    ports:
+      - "8890:80"  # Puerto diferente al original
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: apache2-foreground
