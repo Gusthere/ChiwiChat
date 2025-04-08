@@ -4,8 +4,8 @@ namespace Chiwichat\Chats\Services;
 
 use Chiwichat\Chats\Utils\Database;
 use Chiwichat\Chats\Utils\HttpHelper;
-use Chiwichat\Chats\Utils\Auth;
 use MongoDB\BSON\ObjectId;
+use DateTime;
 use MongoDB\BSON\UTCDateTime;
 use Respect\Validation\Validator as v;
 use Respect\Validation\Exceptions\NestedValidationException;
@@ -215,97 +215,108 @@ class Chat
     public function getConversationMessages($conversationId, $requestData = [])
     {
         try {
-            // Validar conversationId
+            // Validación del ID de conversación
             v::stringType()->notEmpty()->assert($conversationId);
+            $objectIdConversationId = new ObjectId($conversationId);
 
-            try {
-                $objectIdConversationId = new ObjectId($conversationId);
-            } catch (\MongoDB\Driver\Exception\InvalidArgumentException $e) {
-                return HttpHelper::sendJsonResponse(["error" => "ID inválido"], 400);
-            }
-
-            // Validar parámetros de la solicitud
+            // Configuración de límite
             $limit = isset($requestData['limit']) ? (int) $requestData['limit'] : 15;
-            $limit = max(1, min($limit, 100)); // Limitar entre 1 y 100 para evitar abusos
+            $limit = max(1, min($limit, 100));
 
-            $filter = [];
+            // Filtro base para la conversación
+            $conversationFilter = [
+                '_id' => $objectIdConversationId,
+                '$or' => [
+                    ['user1_id' => (int) $this->userData['id']],
+                    ['user2_id' => (int) $this->userData['id']]
+                ]
+            ];
+
+            // Manejo del filtro por fecha
+            $beforeDate = null;
+            $messagesFilter = [];
+
             if (isset($requestData['before_date'])) {
                 try {
                     $beforeDate = new DateTime($requestData['before_date']);
                     $now = new DateTime();
 
                     if ($beforeDate > $now) {
-                        return HttpHelper::sendJsonResponse(["error" => "La fecha no puede ser superior a la actual"], 400);
+                        return HttpHelper::sendJsonResponse(
+                            ["error" => "La fecha no puede ser superior a la actual"],
+                            400
+                        );
                     }
 
-                    // Convertir a formato MongoDB
-                    $filter['messages.sent_at'] = ['$lt' => $beforeDate];
+                    // Convertir a UTCDateTime para comparación exacta
+                    $utcBeforeDate = new UTCDateTime($beforeDate);
+                    $messagesFilter = ['messages.sent_at' => ['$lt' => $utcBeforeDate]];
                 } catch (\Exception $e) {
-                    return HttpHelper::sendJsonResponse(["error" => "Formato de fecha inválido"], 400);
+                    return HttpHelper::sendJsonResponse(
+                        ["error" => "Formato de fecha inválido"],
+                        400
+                    );
                 }
             }
 
-            // Pipeline de agregación para optimizar la consulta
+            // Pipeline de agregación
             $pipeline = [
-                ['$match' => [
-                    '_id' => $objectIdConversationId,
-                    '$or' => [
-                        ['user1_id' => (int) $this->userData['id']],
-                        ['user2_id' => (int) $this->userData['id']],
-                    ]
-                ]],
-                ['$unwind' => '$messages'], // Primero desempaquetamos para mejor compatibilidad
-                [
-                    '$match' => isset($filter['messages.sent_at'])
-                        ? ['messages.sent_at' => $filter['messages.sent_at']]
-                        : []
-                ],
+                ['$match' => $conversationFilter],
+                ['$unwind' => '$messages']
+            ];
+
+            // Aplicar filtro de mensajes si existe
+            if (!empty($messagesFilter)) {
+                $pipeline[] = ['$match' => $messagesFilter];
+            }
+
+            // Continuación del pipeline
+            $pipeline = array_merge($pipeline, [
                 ['$sort' => ['messages.sent_at' => -1]],
                 ['$limit' => $limit],
                 ['$group' => [
                     '_id' => '$_id',
                     'messages' => ['$push' => '$messages']
                 ]]
-            ];
+            ]);
 
-            // Ejecutar con opciones para MongoDB 4.4
-            $options = [
-                'allowDiskUse' => true // Permite usar disco para operaciones grandes
-            ];
+            // Ejecutar la consulta
+            $result = $this->conversationsCollection->aggregate($pipeline)->toArray();
 
-            $result = $this->conversationsCollection->aggregate($pipeline, $options)->toArray();
-            
-            if (empty($result)) {
-                return HttpHelper::sendJsonResponse([
-                    "mensaje" => "mensajes encontrados",
-                    "mensajes" => [],
-                    "total" => 0,
-                    "limit" => $limit,
-                    "before_date" => $beforeDate ?? null
-                ]);
+            // Procesar resultados
+            $messages = [];
+            if (!empty($result)) {
+                $messages = $result[0]['messages'] instanceof \MongoDB\Model\BSONArray
+                    ? $result[0]['messages']->getArrayCopy()
+                    : (array)$result[0]['messages'];
             }
 
-            $messages = $result[0]['messages'];
-
-            // Formatear mensajes para la respuesta
+            // Formatear los mensajes
             $formattedMessages = array_map(function ($msg) {
-                $msg = (object) $msg;
-                $msg->message_id = isset($msg->message_id->{'$oid'}) ? $msg->message_id->{'$oid'} : (string) $msg->message_id;
-                $msg->sent_at = $this->formatDate($msg->sent_at);
-                return $msg;
+                return [
+                    'message_id' => (string) $msg['message_id'],
+                    'receiver_id' => $msg['receiver_id'],
+                    'encrypted_content' => $msg['encrypted_content'],
+                    'sent_at' => $this->formatDate($msg['sent_at'])
+                ];
             }, $messages);
 
             return HttpHelper::sendJsonResponse([
-                "mensaje" => "mensajes encontrados",
-                "mensajes" => $formattedMessages,
-                "total" => count($formattedMessages),
-                "limit" => $limit,
-                "before_date" => $beforeDate ?? null
+                'mensaje' => 'Mensajes encontrados',
+                'mensajes' => $formattedMessages,
+                'total' => count($formattedMessages),
+                'limit' => $limit,
+                'before_date' => $beforeDate ? $beforeDate->format('Y-m-d H:i:s') : null
             ]);
+        } catch (\MongoDB\Driver\Exception\InvalidArgumentException $e) {
+            return HttpHelper::sendJsonResponse(["error" => "ID de conversación inválido"], 400);
         } catch (NestedValidationException $e) {
             return HttpHelper::sendJsonResponse(["errores" => $e->getMessages()], 400);
         } catch (\Exception $e) {
-            return HttpHelper::sendJsonResponse(["error" => $e->getMessage()], 500);
+            return HttpHelper::sendJsonResponse([
+                "error" => "Error interno del servidor",
+                "detalles" => $e->getMessage()
+            ], 500);
         }
     }
 

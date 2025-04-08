@@ -61,7 +61,8 @@ try {
 
         // GET /conversations/{id}/messages - Obtener mensajes de una conversación (protegido)
         case preg_match('#^/conversations/([a-f\d]{24})/messages$#i', $requestUri, $matches) && $method === 'GET':
-            $chat->getConversationMessages($matches[1]);
+            $data = HttpHelper::getJsonData();
+            $chat->getConversationMessages($matches[1], $data);
             break;
 
         default:
