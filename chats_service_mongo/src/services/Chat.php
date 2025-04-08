@@ -250,7 +250,7 @@ class Chat
 
                     // Convertir a UTCDateTime para comparación exacta
                     $utcBeforeDate = new UTCDateTime($beforeDate);
-                    $messagesFilter = ['messages.sent_at' => ['$lt' => $utcBeforeDate]];
+                    $messagesFilter = ['messages.sent_at' => ['$gt' => $utcBeforeDate]];
                 } catch (\Exception $e) {
                     return HttpHelper::sendJsonResponse(
                         ["error" => "Formato de fecha inválido"],
@@ -272,7 +272,6 @@ class Chat
 
             // Continuación del pipeline
             $pipeline = array_merge($pipeline, [
-                ['$sort' => ['messages.sent_at' => -1]],
                 ['$limit' => $limit],
                 ['$group' => [
                     '_id' => '$_id',
