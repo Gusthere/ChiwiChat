@@ -93,7 +93,7 @@ try {
                     "GET /users/{username}" => "Obtener información de usuario",
                     "POST /login" => "Iniciar sesión",
                     // "GET /auth/check" => "Verificar token JWT",
-                    // "GET /users/public-key" => "Obtener clave pública de un usuario (requiere user_id en JSON)"
+                    "GET /users/public-key" => "Obtener clave pública de un usuario (requiere userId en JSON)"
                 ]
             ], 404);
     }

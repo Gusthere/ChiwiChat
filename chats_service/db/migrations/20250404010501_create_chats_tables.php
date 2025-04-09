@@ -7,17 +7,17 @@ class CreateChatsTables extends AbstractMigration
     {
         // Tabla de conversaciones
         $conversations = $this->table('conversations', [
-            'id' => 'conversation_id',
+            'id' => 'conversationId',
         ]);
         $conversations
-            ->addColumn('created_at', 'datetime', [
+            ->addColumn('createdAt', 'datetime', [
                 'default' => 'CURRENT_TIMESTAMP'
             ])
-            ->addColumn('user1_id', 'integer', [
+            ->addColumn('user1Id', 'integer', [
                 'signed' => false,
                 'comment' => 'ID del usuario en el servicio de usuarios'
             ])
-            ->addColumn('user2_id', 'integer', [
+            ->addColumn('user2Id', 'integer', [
                 'signed' => false,
                 'comment' => 'ID del usuario en el servicio de usuarios'
             ])
@@ -25,33 +25,33 @@ class CreateChatsTables extends AbstractMigration
 
         // Tabla de mensajes
         $messages = $this->table('messages', [
-            'id' => 'message_id'
+            'id' => 'messageId'
         ]);
         $messages
-            ->addColumn('conversation_id', 'integer', [
+            ->addColumn('conversationId', 'integer', [
                 'signed' => false
             ])
             ->addColumn('sender_id', 'integer', [
                 'signed' => false,
                 'comment' => 'ID del usuario que envió el mensaje'
             ])
-            ->addColumn('encrypted_content', 'text', [
+            ->addColumn('encryptedContent', 'text', [
                 'null' => false,
                 'comment' => 'Contenido cifrado del mensaje'
             ])
-            ->addColumn('sent_at', 'datetime', [
+            ->addColumn('sentAt', 'datetime', [
                 'default' => 'CURRENT_TIMESTAMP'
             ])
             ->addColumn('status', 'enum', [
                 'values' => ['sent', 'delivered', 'read'],
                 'default' => 'sent'
             ])
-            ->addForeignKey('conversation_id', 'conversations', 'conversation_id', [
+            ->addForeignKey('conversationId', 'conversations', 'conversationId', [
                 'delete' => 'CASCADE',
                 'update' => 'CASCADE'
             ])
             ->addIndex(['sender_id'])
-            ->addIndex(['conversation_id', 'sent_at'])
+            ->addIndex(['conversationId', 'sentAt'])
             ->create();
     }
 }
