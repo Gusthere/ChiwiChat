@@ -42,7 +42,7 @@ try {
 
         // GET /conversations/{id} - Obtener conversación específica
         case preg_match('#^/conversations/(\d+)$#', $requestUri, $matches) && $method === 'GET':
-            $conversationService->getConversation(['conversation_id' => $matches[1]]);
+            $conversationService->getConversation(['conversationId' => $matches[1]]);
             break;
 
         // POST /messages - Enviar mensaje

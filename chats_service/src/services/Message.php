@@ -23,7 +23,7 @@ class Message
     {
         try {
             v::arrayType()
-                ->key('conversation_id', v::intVal()->positive()
+                ->key('conversationId', v::intVal()->positive()
                     ->setName('Conversación id')
                     ->setTemplate('{{name}} debe ser un entero positivo'))
                 ->key('content', v::stringType()->notEmpty()
@@ -50,11 +50,11 @@ class Message
             // Verificar que el remitente es participante
             $checkStmt = $this->db->prepare("
                 SELECT 1 FROM conversations 
-                WHERE conversation_id = :conversation_id AND (user1_id = :user1_id OR user2_id = :user2_id)
+                WHERE conversationId = :conversationId AND (user1Id = :user1Id OR user2Id = :user2Id)
             ");
-            $checkStmt->bindParam(':conversation_id', $data['conversation_id'], PDO::PARAM_INT);
-            $checkStmt->bindParam(':user1_id', $decoded['id'], PDO::PARAM_INT);
-            $checkStmt->bindParam(':user2_id', $decoded['id'], PDO::PARAM_INT);
+            $checkStmt->bindParam(':conversationId', $data['conversationId'], PDO::PARAM_INT);
+            $checkStmt->bindParam(':user1Id', $decoded['id'], PDO::PARAM_INT);
+            $checkStmt->bindParam(':user2Id', $decoded['id'], PDO::PARAM_INT);
             $checkStmt->execute();
 
             if (!$checkStmt->fetch()) {
@@ -66,10 +66,10 @@ class Message
 
             $stmt = $this->db->prepare("
                 INSERT INTO messages 
-                (conversation_id, sender_id, encrypted_content) 
-                VALUES (:conversation_id, :sender_id, :content)
+                (conversationId, sender_id, encryptedContent) 
+                VALUES (:conversationId, :sender_id, :content)
             ");
-            $stmt->bindParam(':conversation_id', $data['conversation_id'], PDO::PARAM_INT);
+            $stmt->bindParam(':conversationId', $data['conversationId'], PDO::PARAM_INT);
             $stmt->bindParam(':sender_id', $decoded['id'], PDO::PARAM_INT);
             $stmt->bindParam(':content', $data['content'], PDO::PARAM_STR);
             $stmt->execute();
@@ -80,10 +80,10 @@ class Message
 
             return HttpHelper::sendJsonResponse([
                 "mensaje" => "Mensaje enviado correctamente",
-                "message_id" => $messageId
+                "messageId" => $messageId
             ], 201);
         } catch (NestedValidationException $e) {
-            return HttpHelper::sendJsonResponse(["errores" => $e->getMessages()], 400);
+            return HttpHelper::sendJsonResponse(["error" => $e->getMessages()], 400);
         } catch (PDOException $e) {
             $this->db->rollBack();
             return HttpHelper::sendJsonResponse(
@@ -120,12 +120,12 @@ class Message
             // Verificar que el remitente es participante
             $checkStmt = $this->db->prepare("
                 SELECT 1 FROM conversations 
-                WHERE conversation_id = :conversation_id AND (user1_id = :user1_id OR user2_id = :user2_id)
+                WHERE conversationId = :conversationId AND (user1Id = :user1Id OR user2Id = :user2Id)
             ");
             
-            $checkStmt->bindParam(':conversation_id', $conversationId, PDO::PARAM_INT);
-            $checkStmt->bindParam(':user1_id', $decoded['id'], PDO::PARAM_INT);
-            $checkStmt->bindParam(':user2_id', $decoded['id'], PDO::PARAM_INT);
+            $checkStmt->bindParam(':conversationId', $conversationId, PDO::PARAM_INT);
+            $checkStmt->bindParam(':user1Id', $decoded['id'], PDO::PARAM_INT);
+            $checkStmt->bindParam(':user2Id', $decoded['id'], PDO::PARAM_INT);
             $checkStmt->execute();
 
             if (!$checkStmt->fetch()) {
@@ -136,12 +136,12 @@ class Message
             }
 
             $stmt = $this->db->prepare("
-                SELECT message_id, sender_id, encrypted_content as content, sent_at
+                SELECT messageId, sender_id, encryptedContent as content, sentAt
                 FROM messages 
-                WHERE conversation_id = :conversation_id
-                ORDER BY sent_at DESC
+                WHERE conversationId = :conversationId
+                ORDER BY sentAt DESC
             ");
-            $stmt->bindParam(':conversation_id', $conversationId, PDO::PARAM_INT);
+            $stmt->bindParam(':conversationId', $conversationId, PDO::PARAM_INT);
             $stmt->execute();
 
             $messages = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -150,7 +150,7 @@ class Message
                 "mensajes" => $messages,
             ]);
         } catch (NestedValidationException $e) {
-            return HttpHelper::sendJsonResponse(["errores" => $e->getMessages()], 400);
+            return HttpHelper::sendJsonResponse(["error" => $e->getMessages()], 400);
         } catch (PDOException $e) {
             return HttpHelper::sendJsonResponse(
                 ["error" => "Error al obtener mensajes"],

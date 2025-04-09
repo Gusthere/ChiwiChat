@@ -34,11 +34,11 @@ class ApiController
           $data = json_decode(file_get_contents('php://input'), true);
           switch ($endpoint) {
             case 'generate-keys':
-              if (!isset($data['user_id'])) {
-                throw new Exception("El campo 'user_id' es obligatorio");
+              if (!isset($data['userId'])) {
+                throw new Exception("El campo 'userId' es obligatorio");
               }
               $response = $this->generateKeys(
-                $data['user_id'],
+                $data['userId'],
               );
               break;
 
@@ -58,7 +58,7 @@ class ApiController
 
             case 'sign':
               $response = $this->signMessage(
-                $data['user_id'],
+                $data['userId'],
                 $data['message'],
               );
               break;
@@ -79,7 +79,7 @@ class ApiController
         case 'GET':
           switch ($endpoint) {
             case 'public-key':
-              $response = $this->getPublicKey($_GET['user_id']);
+              $response = $this->getPublicKey($_GET['userId']);
               break;
 
             default:
@@ -134,7 +134,7 @@ class ApiController
   {
     $publicKey = $this->cryptoEngine->getPublicKey($userId);
     return [
-      'public_key' => $publicKey ?? null
+      'publicKey' => $publicKey ?? null
     ];
   }
 

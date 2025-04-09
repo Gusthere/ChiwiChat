@@ -50,7 +50,7 @@ class User
                 ->assert($data);
         } catch (NestedValidationException $e) {
             $errors = $e->getMessages();
-            return HttpHelper::sendJsonResponse(["errores" => $errors], 400);
+            return HttpHelper::sendJsonResponse(["error" => $errors], 400);
         }
 
         try {
@@ -60,7 +60,7 @@ class User
             $credentialErrors = $this->checkExistingCredentials($data['username'], $data['email']);
             if ($credentialErrors) {
                 return HttpHelper::sendJsonResponse([
-                    "errores" => $credentialErrors
+                    "error" => $credentialErrors
                 ], 409);
             }
 
@@ -78,7 +78,7 @@ class User
 
             $url = Env::env('URL_CRYPTO').'?action=generate-keys';
             $jsonData = [
-                "user_id" => $id
+                "userId" => $id
             ];
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -117,7 +117,7 @@ class User
                 );
             }
 
-            if (!isset($decodedResponse['public_key'])) {
+            if (!isset($decodedResponse['publicKey'])) {
                 $this->db->rollBack();
                 return HttpHelper::sendJsonResponse(
                     ["error" => "La API no devolvió una clave pública válida"],
@@ -177,7 +177,7 @@ class User
                 ->setTemplate('El término de búsqueda debe tener entre 2 y 100 caracteres')
                 ->assert($searchTerm);
         } catch (NestedValidationException $e) {
-            return HttpHelper::sendJsonResponse(["errores" => $e->getMessages()], 400);
+            return HttpHelper::sendJsonResponse(["error" => $e->getMessages()], 400);
         }
 
         try {
@@ -219,7 +219,7 @@ class User
                 ->setTemplate('El nombre de usuario o correo debe tener entre 2 y 100 caracteres')
                 ->assert($username);
         } catch (NestedValidationException $e) {
-            return HttpHelper::sendJsonResponse(["errores" => $e->getMessages()], 400);
+            return HttpHelper::sendJsonResponse(["error" => $e->getMessages()], 400);
         }
 
         try {
@@ -325,11 +325,11 @@ class User
                 ->key('username', v::stringType()->notEmpty())
                 ->assert($data);
         } catch (NestedValidationException $e) {
-            return HttpHelper::sendJsonResponse(["errores" => $e->getMessages()], 400);
+            return HttpHelper::sendJsonResponse(["error" => $e->getMessages()], 400);
         }
 
         $userId = $data['username'];
-        $thirdPartyApiUrl = $url = Env::env('URL_CRYPTO').'?action=public-key&user_id=' . urlencode($userId);
+        $thirdPartyApiUrl = $url = Env::env('URL_CRYPTO').'?action=public-key&userId=' . urlencode($userId);
         try {
             // Configurar la petición cURL
             $ch = curl_init($thirdPartyApiUrl);
@@ -364,7 +364,7 @@ class User
                 );
             }
 
-            if (!isset($decodedResponse['public_key'])) {
+            if (!isset($decodedResponse['publicKey'])) {
                 return HttpHelper::sendJsonResponse(
                     ["error" => "La API no devolvió una clave pública válida"],
                     502
@@ -373,7 +373,7 @@ class User
 
             return HttpHelper::sendJsonResponse([
                 "mensaje" => "Clave pública obtenida correctamente",
-                "public_key" => $decodedResponse['public_key'],
+                "publicKey" => $decodedResponse['publicKey'],
                 "username" => $userId
             ]);
         } catch (\Exception $e) {

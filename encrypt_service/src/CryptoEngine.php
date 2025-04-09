@@ -46,8 +46,8 @@ class CryptoEngine
       // Almacenar las claves
       $this->keyManager->storeKeys($userId, $publicKey, $privateKey);
       return [
-        'user_id' => $userId,
-        'public_key' => $publicKey,
+        'userId' => $userId,
+        'publicKey' => $publicKey,
         'private_key_stored' => true
       ];
     } catch (Exception $e) {

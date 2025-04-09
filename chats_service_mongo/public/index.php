@@ -50,7 +50,7 @@ try {
 
         // GET /conversations/{id} - Obtener conversación específica (protegido)
         case preg_match('#^/conversations/([a-f\d]{24})$#i', $requestUri, $matches) && $method === 'GET':
-            $chat->getConversation(['conversation_id' => $matches[1]]);
+            $chat->getConversation(['conversationId' => $matches[1]]);
             break;
 
         // POST /messages - Enviar mensaje a una conversación (protegido)
@@ -71,9 +71,9 @@ try {
                 "endpoints_disponibles" => [
                     "POST /conversations" => "Crear nueva conversación",
                     "GET /conversations" => "Obtener conversaciones del usuario",
-                    "GET /conversations/{conversation_id}" => "Obtener conversación específica",
+                    "GET /conversations/{conversationId}" => "Obtener conversación específica",
                     "POST /messages" => "Enviar mensaje a una conversación",
-                    "GET /conversations/{conversation_id}/messages" => "Obtener mensajes de una conversación"
+                    "GET /conversations/{conversationId}/messages" => "Obtener mensajes de una conversación"
                 ]
             ], 404);
     }

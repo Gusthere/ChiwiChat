@@ -23,7 +23,7 @@ class Conversation
     {
         try {
             v::arrayType()
-                ->key('user_id', v::intVal()->positive()
+                ->key('userId', v::intVal()->positive()
                     ->setName('ID de usuario')
                     ->setTemplate('{{name}} debe ser un número entero positivo'))
                 ->assert($data);
@@ -45,11 +45,11 @@ class Conversation
             $this->db->beginTransaction();
 
             $stmt = $this->db->prepare("
-                INSERT INTO conversations (user1_id, user2_id, created_at)
-                VALUES (:user1_id, :user2_id, CURRENT_TIMESTAMP)
+                INSERT INTO conversations (user1Id, user2Id, createdAt)
+                VALUES (:user1Id, :user2Id, CURRENT_TIMESTAMP)
             ");
-            $stmt->bindParam(':user1_id', $decoded['id'], PDO::PARAM_INT);
-            $stmt->bindParam(':user2_id', $data['user_id'], PDO::PARAM_INT);
+            $stmt->bindParam(':user1Id', $decoded['id'], PDO::PARAM_INT);
+            $stmt->bindParam(':user2Id', $data['userId'], PDO::PARAM_INT);
             $stmt->execute();
 
             $conversationId = $this->db->lastInsertId();
@@ -57,7 +57,7 @@ class Conversation
             $this->db->commit();
             return HttpHelper::sendJsonResponse([
                 "mensaje" => "Conversación creada correctamente",
-                "conversation_id" => $conversationId
+                "conversationId" => $conversationId
             ], 201);
         } catch (PDOException $e) {
             $this->db->rollBack();
@@ -66,7 +66,7 @@ class Conversation
                 500
             );
         } catch (NestedValidationException $e) {
-            return HttpHelper::sendJsonResponse(["errores" => $e->getMessages()], 400);
+            return HttpHelper::sendJsonResponse(["error" => $e->getMessages()], 400);
         } catch (\Exception $e) {
             return HttpHelper::sendJsonResponse(
                 ["error" => $e->getMessage()],
@@ -79,15 +79,15 @@ class Conversation
     {
         try {
             v::arrayType()
-                ->key('conversation_id', v::intVal()->positive()
+                ->key('conversationId', v::intVal()->positive()
                     ->setName('Conversación id')
                     ->setTemplate('{{name}} debe ser un entero positivo'))
                 ->assert($data);
             $stmt = $this->db->prepare("
                 SELECT * FROM conversations 
-                WHERE conversation_id = :id
+                WHERE conversationId = :id
                 ");
-            $stmt->bindParam(':id', $data['conversation_id'], PDO::PARAM_INT);
+            $stmt->bindParam(':id', $data['conversationId'], PDO::PARAM_INT);
             $stmt->execute();
 
             $conversation = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -108,7 +108,7 @@ class Conversation
                 500
             );
         } catch (NestedValidationException $e) {
-            return HttpHelper::sendJsonResponse(["errores" => $e->getMessages()], 400);
+            return HttpHelper::sendJsonResponse(["error" => $e->getMessages()], 400);
         } catch (\Exception $e) {
             return HttpHelper::sendJsonResponse(
                 ["error" => $e->getMessage()],
@@ -138,11 +138,11 @@ class Conversation
             $stmt = $this->db->prepare("
                 SELECT *
                 FROM conversations 
-                WHERE user1_id = :user1_id
-                OR user2_id = :user2_id
+                WHERE user1Id = :user1Id
+                OR user2Id = :user2Id
             ");
-            $stmt->bindParam(':user1_id', $decoded['id'], PDO::PARAM_INT);
-            $stmt->bindParam(':user2_id', $decoded['id'], PDO::PARAM_INT);
+            $stmt->bindParam(':user1Id', $decoded['id'], PDO::PARAM_INT);
+            $stmt->bindParam(':user2Id', $decoded['id'], PDO::PARAM_INT);
             $stmt->execute();
 
             $conversation = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -152,7 +152,7 @@ class Conversation
                 "total" => count($conversation)
             ]);
         } catch (NestedValidationException $e) {
-            return HttpHelper::sendJsonResponse(["errores" => $e->getMessages()], 400);
+            return HttpHelper::sendJsonResponse(["error" => $e->getMessages()], 400);
         } catch (PDOException $e) {
             return HttpHelper::sendJsonResponse(
                 ["error" => "Error al obtener los chats"],

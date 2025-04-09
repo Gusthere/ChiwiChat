@@ -36,29 +36,29 @@ class Chat
     {
         try {
             v::arrayType()
-                ->key('user_id', v::intVal()->positive()
+                ->key('userId', v::intVal()->positive()
                     ->setName('ID de usuario')
                     ->setTemplate('{{name}} debe ser un número entero positivo'))
                 ->assert($data);
 
             $existingConversation = $this->conversationsCollection->findOne([
                 '$or' => [
-                    ['user1_id' => (int) $this->userData['id'], 'user2_id' => (int) $data['user_id']],
-                    ['user1_id' => (int) $data['user_id'], 'user2_id' => (int) $this->userData['id']],
+                    ['user1Id' => (int) $this->userData['id'], 'user2Id' => (int) $data['userId']],
+                    ['user1Id' => (int) $data['userId'], 'user2Id' => (int) $this->userData['id']],
                 ]
             ]);
 
             if ($existingConversation) {
                 return HttpHelper::sendJsonResponse([
                     "mensaje" => "Ya existe una conversación con este usuario",
-                    "conversation_id" => (string) $existingConversation->_id
+                    "conversationId" => (string) $existingConversation->_id
                 ], 200);
             }
 
             $insertResult = $this->conversationsCollection->insertOne([
-                'user1_id' => (int) $this->userData['id'],
-                'user2_id' => (int) $data['user_id'],
-                'created_at' => new UTCDateTime(),
+                'user1Id' => (int) $this->userData['id'],
+                'user2Id' => (int) $data['userId'],
+                'createdAt' => new UTCDateTime(),
                 'messages' => []
             ]);
 
@@ -66,7 +66,7 @@ class Chat
                 $conversationId = (string) $insertResult->getInsertedId();
                 return HttpHelper::sendJsonResponse([
                     "mensaje" => "Conversación creada correctamente",
-                    "conversation_id" => $conversationId
+                    "conversationId" => $conversationId
                 ], 201);
             } else {
                 return HttpHelper::sendJsonResponse(
@@ -75,7 +75,7 @@ class Chat
                 );
             }
         } catch (NestedValidationException $e) {
-            return HttpHelper::sendJsonResponse(["errores" => $e->getMessages()], 400);
+            return HttpHelper::sendJsonResponse(["error" => $e->getMessages()], 400);
         } catch (\Exception $e) {
             return HttpHelper::sendJsonResponse(
                 ["error" => $e->getMessage()],
@@ -88,13 +88,13 @@ class Chat
     {
         try {
             v::arrayType()
-                ->key('conversation_id', v::stringType()->notEmpty()
+                ->key('conversationId', v::stringType()->notEmpty()
                     ->setName('Conversación id')
                     ->setTemplate('{{name}} debe ser una cadena no vacía'))
                 ->assert($data);
 
             try {
-                $conversationId = new ObjectId($data['conversation_id']);
+                $conversationId = new ObjectId($data['conversationId']);
             } catch (\MongoDB\Driver\Exception\InvalidArgumentException $e) {
                 return HttpHelper::sendJsonResponse(["error" => "ID de conversación inválido"], 400);
             }
@@ -102,8 +102,8 @@ class Chat
             $conversation = $this->conversationsCollection->findOne([
                 '_id' => $conversationId,
                 '$or' => [
-                    ['user1_id' => (int) $this->userData['id']],
-                    ['user2_id' => (int) $this->userData['id']],
+                    ['user1Id' => (int) $this->userData['id']],
+                    ['user2Id' => (int) $this->userData['id']],
                 ]
             ]);
 
@@ -114,14 +114,14 @@ class Chat
             return HttpHelper::sendJsonResponse([
                 "mensaje" => "Conversación encontrada",
                 "conversation" => [
-                    "conversation_id" => (string) $conversation->_id,
-                    "user1_id" => $conversation->user1_id,
-                    "user2_id" => $conversation->user2_id,
-                    "created_at" => $this->formatDate($conversation->created_at), // Formatear fecha
+                    "conversationId" => (string) $conversation->_id,
+                    "user1Id" => $conversation->user1Id,
+                    "user2Id" => $conversation->user2Id,
+                    "createdAt" => $this->formatDate($conversation->createdAt), // Formatear fecha
                 ]
             ]);
         } catch (NestedValidationException $e) {
-            return HttpHelper::sendJsonResponse(["errores" => $e->getMessages()], 400);
+            return HttpHelper::sendJsonResponse(["error" => $e->getMessages()], 400);
         } catch (\Exception $e) {
             return HttpHelper::sendJsonResponse(
                 ["error" => $e->getMessage()],
@@ -135,17 +135,17 @@ class Chat
         try {
             $conversations = $this->conversationsCollection->find([
                 '$or' => [
-                    ['user1_id' => (int) $this->userData['id']],
-                    ['user2_id' => (int) $this->userData['id']],
+                    ['user1Id' => (int) $this->userData['id']],
+                    ['user2Id' => (int) $this->userData['id']],
                 ]
             ])->toArray();
 
             $formattedConversations = array_map(function ($conv) {
                 return [
-                    "conversation_id" => (string) $conv->_id,
-                    "user1_id" => $conv->user1_id,
-                    "user2_id" => $conv->user2_id,
-                    "created_at" => $this->formatDate($conv->created_at), // Formatear fecha
+                    "conversationId" => (string) $conv->_id,
+                    "user1Id" => $conv->user1Id,
+                    "user2Id" => $conv->user2Id,
+                    "createdAt" => $this->formatDate($conv->createdAt), // Formatear fecha
                 ];
             }, $conversations);
 
@@ -166,11 +166,11 @@ class Chat
     {
         try {
             v::arrayType()
-                ->key('conversation_id', v::stringType()->notEmpty())
+                ->key('conversationId', v::stringType()->notEmpty())
                 ->key('content', v::stringType()->notEmpty())
                 ->assert($data);
             try {
-                $conversationId = new ObjectId($data['conversation_id']);
+                $conversationId = new ObjectId($data['conversationId']);
             } catch (\MongoDB\Driver\Exception\InvalidArgumentException $e) {
                 return HttpHelper::sendJsonResponse(["error" => "ID de conversación inválido"], 400);
             }
@@ -178,8 +178,8 @@ class Chat
             $conversation = $this->conversationsCollection->findOne([
                 '_id' => $conversationId,
                 '$or' => [
-                    ['user1_id' => (int) $this->userData['id']],
-                    ['user2_id' => (int) $this->userData['id']],
+                    ['user1Id' => (int) $this->userData['id']],
+                    ['user2Id' => (int) $this->userData['id']],
                 ]
             ]);
 
@@ -188,16 +188,16 @@ class Chat
             }
 
             $newMessageId = new ObjectId();
-            $receiver_id = (int) ($this->userData['id'] == $conversation->user1_id) ? $conversation->user2_id : $conversation->user1_id;
+            $receiverId = (int) ($this->userData['id'] == $conversation->user1Id) ? $conversation->user2Id : $conversation->user1Id;
 
             $updateResult = $this->conversationsCollection->updateOne(
                 ['_id' => $conversationId],
                 ['$push' => [
                     'messages' => [
-                        'message_id' => $newMessageId,
-                        'receiver_id' => $receiver_id,
-                        'encrypted_content' => $data['content'],
-                        'sent_at' => new UTCDateTime(),
+                        'messageId' => $newMessageId,
+                        'receiverId' => $receiverId,
+                        'encryptedContent' => $data['content'],
+                        'sentAt' => new UTCDateTime(),
                         'status' => 0
                     ]
                 ]]
@@ -206,13 +206,13 @@ class Chat
             if ($updateResult->getModifiedCount() > 0) {
                 return HttpHelper::sendJsonResponse([
                     "mensaje" => "Mensaje enviado",
-                    "message_id" => (string) $newMessageId
+                    "messageId" => (string) $newMessageId
                 ], 201);
             } else {
                 return HttpHelper::sendJsonResponse(["error" => "Error al enviar mensaje"], 500);
             }
         } catch (NestedValidationException $e) {
-            return HttpHelper::sendJsonResponse(["errores" => $e->getMessages()], 400);
+            return HttpHelper::sendJsonResponse(["error" => $e->getMessages()], 400);
         } catch (\Exception $e) {
             return HttpHelper::sendJsonResponse(["error" => $e->getMessage()], 401);
         }
@@ -233,8 +233,8 @@ class Chat
             $conversationFilter = [
                 '_id' => $objectIdConversationId,
                 '$or' => [
-                    ['user1_id' => (int) $this->userData['id']],
-                    ['user2_id' => (int) $this->userData['id']]
+                    ['user1Id' => (int) $this->userData['id']],
+                    ['user2Id' => (int) $this->userData['id']]
                 ]
             ];
 
@@ -242,9 +242,9 @@ class Chat
             $beforeDate = null;
             $messagesFilter = [];
 
-            if (isset($requestData['before_date'])) {
+            if (isset($requestData['beforeDate'])) {
                 try {
-                    $beforeDate = new DateTime($requestData['before_date']);
+                    $beforeDate = new DateTime($requestData['beforeDate']);
                     $now = new DateTime();
 
                     if ($beforeDate > $now) {
@@ -256,7 +256,7 @@ class Chat
 
                     // Convertir a UTCDateTime para comparación exacta
                     $utcBeforeDate = new UTCDateTime($beforeDate);
-                    $messagesFilter = ['messages.sent_at' => ['$gt' => $utcBeforeDate]];
+                    $messagesFilter = ['messages.sentAt' => ['$gt' => $utcBeforeDate]];
                 } catch (\Exception $e) {
                     return HttpHelper::sendJsonResponse(
                         ["error" => "Formato de fecha inválido"],
@@ -299,10 +299,11 @@ class Chat
             // Formatear los mensajes
             $formattedMessages = array_map(function ($msg) {
                 return [
-                    'message_id' => (string) $msg['message_id'],
-                    'userId' => $msg['receiver_id'],
-                    'encryptedMessage' => $msg['encrypted_content'],
-                    'date' => $this->formatDate($msg['sent_at'])
+                    'messageId' => (string) $msg['messageId'],
+                    'userId' => $msg['receiverId'],
+                    'encryptedMessage' => $msg['encryptedContent'],
+                    'date' => $this->formatDate($msg['sentAt']),
+                    'status' => $msg['status']
                 ];
             }, $messages);
             // Si hay mensajes, enviarlos a la API de terceros
@@ -359,12 +360,12 @@ class Chat
                 'mensajes' => $formattedMessages,
                 'total' => count($formattedMessages),
                 'limit' => $limit,
-                'before_date' => $beforeDate ? $beforeDate->format('Y-m-d H:i:s') : null
+                'beforeDate' => $beforeDate ? $beforeDate->format('Y-m-d H:i:s') : null
             ]);
         } catch (\MongoDB\Driver\Exception\InvalidArgumentException $e) {
             return HttpHelper::sendJsonResponse(["error" => "ID de conversación inválido"], 400);
         } catch (NestedValidationException $e) {
-            return HttpHelper::sendJsonResponse(["errores" => $e->getMessages()], 400);
+            return HttpHelper::sendJsonResponse(["error" => $e->getMessages()], 400);
         } catch (\Exception $e) {
             return HttpHelper::sendJsonResponse([
                 "error" => "Error interno del servidor 3",
