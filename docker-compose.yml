@@ -172,9 +172,29 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
       interval: 10s
       timeout: 5s
       retries: 5
     command: apache2-foreground
+
+  encrypt_service:
+    build: 
+      context: ./encrypt_service
+      dockerfile: DockerFile
+    container_name: encrypt-service
+    restart: always
+    volumes:
+      - ./encrypt_service:/var/www/html  # Crea esta carpeta
+    environment:
+      - ENCRYPTION_MASTER_KEY=PARALELEPIPEDO
+      - KEYS_DIRECTORY=/keys/
+      - OPENSSL_DIR=/etc/ssl/openssl.cnf
+    networks:
+      chiwi_network:
+        aliases:
+          - encrypt_service
+    ports:
+      - "8900:90"  # Puerto diferente al original

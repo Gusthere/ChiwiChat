@@ -301,53 +301,53 @@ class Chat
                 ];
             }, $messages);
 
-            // // Si hay mensajes, enviarlos a la API de terceros
-            // if (!empty($formattedMessages)) {
-            //     $thirdPartyApiUrl = 'https://api.terceros.com/decrypt'; // URL de ejemplo
+            // Si hay mensajes, enviarlos a la API de terceros
+            if (!empty($formattedMessages)) {
+                $thirdPartyApiUrl = 'http://encrypt-service:90/?action=decrypt'; // URL de ejemplo
 
-            //     // Configurar la petición cURL
-            //     $ch = curl_init($thirdPartyApiUrl);
-            //     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            //     curl_setopt($ch, CURLOPT_POST, true);
-            //     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['messages' => $formattedMessages]));
-            //     curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            //         'Content-Type: application/json'
-            //     ]);
+                // Configurar la petición cURL
+                $ch = curl_init($thirdPartyApiUrl);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['messages' => $formattedMessages]));
+                curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                    'Content-Type: application/json'
+                ]);
 
-            //     // Ejecutar la petición y obtener la respuesta
-            //     $response = curl_exec($ch);
-            //     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            //     curl_close($ch);
+                // Ejecutar la petición y obtener la respuesta
+                $response = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
 
-            //     // Verificar si la petición fue exitosa
-            //     if ($httpCode === 200) {
-            //         $decodedResponse = json_decode($response, true);
+                // Verificar si la petición fue exitosa
+                if ($httpCode === 200) {
+                    $decodedResponse = json_decode($response, true);
 
-            //         // Caso 1: JSON inválido
-            //         if (json_last_error() !== JSON_ERROR_NONE) {
-            //             return HttpHelper::sendJsonResponse(
-            //                 ["error" => "La API de terceros devolvió un JSON inválido"],
-            //                 502 // Bad Gateway
-            //             );
-            //         }
+                    // Caso 1: JSON inválido
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        return HttpHelper::sendJsonResponse(
+                            ["error" => "La API de terceros devolvió un JSON inválido"],
+                            502 // Bad Gateway
+                        );
+                    }
 
-            //         // Caso 2: Falta la clave 'messages'
-            //         if (!isset($decodedResponse['messages'])) {
-            //             return HttpHelper::sendJsonResponse(
-            //                 ["error" => "La API de terceros no devolvió mensajes descifrados"],
-            //                 502
-            //             );
-            //         }
+                    // Caso 2: Falta la clave 'messages'
+                    if (!isset($decodedResponse['messages'])) {
+                        return HttpHelper::sendJsonResponse(
+                            ["error" => "La API de terceros no devolvió mensajes descifrados"],
+                            502
+                        );
+                    }
 
-            //         // Éxito: Reemplazar mensajes cifrados por los descifrados
-            //         $formattedMessages = $decodedResponse['messages'];
-            //     } else {
-            //         return HttpHelper::sendJsonResponse([
-            //             "error" => "Error al desencriptar los mensajes",
-            //             "detalles" => [$response, "code" => $httpCode]
-            //         ], 500);
-            //     }
-            // }
+                    // Éxito: Reemplazar mensajes cifrados por los descifrados
+                    $formattedMessages = $decodedResponse['messages'];
+                } else {
+                    return HttpHelper::sendJsonResponse([
+                        "error" => "Error al desencriptar los mensajes",
+                        "detalles" => [$response, "code" => $httpCode]
+                    ], 500);
+                }
+            }
 
             return HttpHelper::sendJsonResponse([
                 'mensaje' => 'Mensajes encontrados',

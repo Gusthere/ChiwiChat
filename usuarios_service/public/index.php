@@ -80,10 +80,11 @@ try {
         //     break;
 
         
-        // case $requestUri === '/users/public-key' && $method === 'GET':
-        //     $data = HttpHelper::getJsonData();
-        //     $userService->getUserPublicKey($data);
-        //     break;
+        case $requestUri === '/users/public-key' && $method === 'GET':
+            
+            $data = HttpHelper::getJsonData();
+            $userService->getUserPublicKey($data);
+            break;
 
         default:
             HttpHelper::sendJsonResponse([

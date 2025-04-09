@@ -70,6 +70,56 @@ class User
             $stmt->execute();
 
             $id = $this->db->lastInsertId();
+            
+            $url = 'http://encrypt-service:90/?action=generate-keys';
+            $jsonData = [
+                "user_id" => $data["username"]
+            ];
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($jsonData));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/json',
+                'Accept: application/json'
+            ]);
+
+            // Ejecutar la petición
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            // Verificar respuesta
+            if ($httpCode !== 200) {
+                $this->db->rollBack();
+                $error = json_decode($response, true);
+                return HttpHelper::sendJsonResponse(
+                    [
+                        "error" => "No se pudo obtener la clave pública del usuario",
+                        "detalles" => $error
+                    ],
+                    502
+                );
+            }
+
+            $decodedResponse = json_decode($response, true);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                $this->db->rollBack();
+                return HttpHelper::sendJsonResponse(
+                    ["error" => "Respuesta inválida de la API de claves"],
+                    502
+                );
+            }
+
+            if (!isset($decodedResponse['public_key'])) {
+                $this->db->rollBack();
+                return HttpHelper::sendJsonResponse(
+                    ["error" => "La API no devolvió una clave pública válida"],
+                    502
+                );
+            }
+
             $this->db->commit();
 
             return HttpHelper::sendJsonResponse([
@@ -262,67 +312,67 @@ class User
         }
     }
 
-    // public function getUserPublicKey($data)
-    // {
-    //     try {
-    //         // Validar que se proporcionó un ID de usuario
-    //         v::arrayType()
-    //             ->key('username', v::stringType()->notEmpty())
-    //             ->assert($data);
-    //     } catch (NestedValidationException $e) {
-    //         return HttpHelper::sendJsonResponse(["errores" => $e->getMessages()], 400);
-    //     }
+    public function getUserPublicKey($data)
+    {
+        try {
+            // Validar que se proporcionó un ID de usuario
+            v::arrayType()
+                ->key('username', v::stringType()->notEmpty())
+                ->assert($data);
+        } catch (NestedValidationException $e) {
+            return HttpHelper::sendJsonResponse(["errores" => $e->getMessages()], 400);
+        }
 
-    //     $userId = $data['username'];
-    //     $thirdPartyApiUrl = 'https://api.terceros.com/public-keys/' . urlencode($userId);
+        $userId = $data['username'];
+        $thirdPartyApiUrl = 'http://encrypt-service:90/?action=public-key&user_id=' . urlencode($userId);
 
-    //     try {
-    //         // Configurar la petición cURL
-    //         $ch = curl_init($thirdPartyApiUrl);
-    //         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    //         curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    //             'Content-Type: application/json'
-    //         ]);
+        try {
+            // Configurar la petición cURL
+            $ch = curl_init($thirdPartyApiUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/json'
+            ]);
 
-    //         // Ejecutar la petición
-    //         $response = curl_exec($ch);
-    //         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    //         curl_close($ch);
+            // Ejecutar la petición
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
 
-    //         // Verificar respuesta
-    //         if ($httpCode !== 200) {
-    //             return HttpHelper::sendJsonResponse(
-    //                 ["error" => "No se pudo obtener la clave pública del usuario"],
-    //                 502
-    //             );
-    //         }
+            // Verificar respuesta
+            if ($httpCode !== 200) {
+                return HttpHelper::sendJsonResponse(
+                    ["error" => "No se pudo obtener la clave pública del usuario"],
+                    502
+                );
+            }
 
-    //         $decodedResponse = json_decode($response, true);
+            $decodedResponse = json_decode($response, true);
 
-    //         if (json_last_error() !== JSON_ERROR_NONE) {
-    //             return HttpHelper::sendJsonResponse(
-    //                 ["error" => "Respuesta inválida de la API de claves"],
-    //                 502
-    //             );
-    //         }
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return HttpHelper::sendJsonResponse(
+                    ["error" => "Respuesta inválida de la API de claves"],
+                    502
+                );
+            }
 
-    //         if (!isset($decodedResponse['public_key'])) {
-    //             return HttpHelper::sendJsonResponse(
-    //                 ["error" => "La API no devolvió una clave pública válida"],
-    //                 502
-    //             );
-    //         }
+            if (!isset($decodedResponse['public_key'])) {
+                return HttpHelper::sendJsonResponse(
+                    ["error" => "La API no devolvió una clave pública válida"],
+                    502
+                );
+            }
 
-    //         return HttpHelper::sendJsonResponse([
-    //             "mensaje" => "Clave pública obtenida correctamente",
-    //             "public_key" => $decodedResponse['public_key'],
-    //             "username" => $userId
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         return HttpHelper::sendJsonResponse(
-    //             ["error" => "Error al comunicarse con la API de claves: " . $e->getMessage()],
-    //             500
-    //         );
-    //     }
-    // }
+            return HttpHelper::sendJsonResponse([
+                "mensaje" => "Clave pública obtenida correctamente",
+                "public_key" => $decodedResponse['public_key'],
+                "username" => $userId
+            ]);
+        } catch (\Exception $e) {
+            return HttpHelper::sendJsonResponse(
+                ["error" => "Error al comunicarse con la API de claves: " . $e->getMessage()],
+                500
+            );
+        }
+    }
 }
