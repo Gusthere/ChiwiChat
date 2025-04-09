@@ -58,6 +58,11 @@ try {
             $userService->createUser($data);
             break;
 
+        case $requestUri === '/users/public-key' && $method === 'GET':
+            $data = HttpHelper::getJsonData();
+            $userService->getUserPublicKey($data);
+            break;
+
         // GET /users/me - Obtener mi usuario (protegido)
         case $requestUri === '/users/me' && $method === 'GET':
             $userService->Me();
@@ -78,13 +83,6 @@ try {
         // case $requestUri === '/auth/check' && $method === 'GET':
         //     $userService->checkUser();
         //     break;
-
-        
-        case $requestUri === '/users/public-key' && $method === 'GET':
-            
-            $data = HttpHelper::getJsonData();
-            $userService->getUserPublicKey($data);
-            break;
 
         default:
             HttpHelper::sendJsonResponse([

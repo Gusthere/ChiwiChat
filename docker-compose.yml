@@ -99,6 +99,7 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - APP_ENV=production
       - APP_DEBUG=false
+      - URL_CRYPTO=http://encrypt-service:90/
     networks:
       chiwi_network:
         aliases:
@@ -106,8 +107,8 @@ services:
     ports:
       - "8888:80"
     depends_on:
-      db_users:
-        condition: service_healthy
+      - db_users
+      - encrypt_service
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
       interval: 10s
@@ -163,6 +164,7 @@ services:
       - MONGO_DATABASE=${MONGO_DATABASE}
       - APP_ENV=production
       - APP_DEBUG=false
+      - URL_CRYPTO=http://encrypt-service:90/
     networks:
       chiwi_network:
         aliases:
@@ -170,8 +172,8 @@ services:
     ports:
       - "8890:80"  # Puerto diferente al original
     depends_on:
-      mongodb:
-        condition: service_healthy
+      - mongodb
+      - encrypt_service
 
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]

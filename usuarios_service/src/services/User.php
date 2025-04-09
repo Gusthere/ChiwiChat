@@ -9,6 +9,11 @@ use PDO;
 use PDOException;
 use Respect\Validation\Validator as v;
 use Respect\Validation\Exceptions\NestedValidationException;
+use Dotenv\Dotenv;
+use Chiwichat\Users\Utils\Env;
+
+$dotenv = Dotenv::createImmutable(__DIR__ . '/../../');
+$dotenv->load();
 
 class User
 {
@@ -70,10 +75,10 @@ class User
             $stmt->execute();
 
             $id = $this->db->lastInsertId();
-            
-            $url = 'http://encrypt-service:90/?action=generate-keys';
+
+            $url = Env::env('URL_CRYPTO').'?action=generate-keys';
             $jsonData = [
-                "user_id" => $data["username"]
+                "user_id" => $id
             ];
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -324,8 +329,7 @@ class User
         }
 
         $userId = $data['username'];
-        $thirdPartyApiUrl = 'http://encrypt-service:90/?action=public-key&user_id=' . urlencode($userId);
-
+        $thirdPartyApiUrl = $url = Env::env('URL_CRYPTO').'?action=public-key&user_id=' . urlencode($userId);
         try {
             // Configurar la petición cURL
             $ch = curl_init($thirdPartyApiUrl);
@@ -341,8 +345,12 @@ class User
 
             // Verificar respuesta
             if ($httpCode !== 200) {
+                $error = json_decode($response, true);
                 return HttpHelper::sendJsonResponse(
-                    ["error" => "No se pudo obtener la clave pública del usuario"],
+                    [
+                        "error" => "No se pudo obtener la clave pública del usuario",
+                        "detalles" => $error
+                    ],
                     502
                 );
             }

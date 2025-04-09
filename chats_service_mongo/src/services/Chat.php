@@ -9,6 +9,11 @@ use DateTime;
 use MongoDB\BSON\UTCDateTime;
 use Respect\Validation\Validator as v;
 use Respect\Validation\Exceptions\NestedValidationException;
+use Dotenv\Dotenv;
+use Chiwichat\Chats\Utils\Env;
+
+$dotenv = Dotenv::createImmutable(__DIR__ . '/../../');
+$dotenv->load();
 
 class Chat
 {
@@ -295,16 +300,14 @@ class Chat
             $formattedMessages = array_map(function ($msg) {
                 return [
                     'message_id' => (string) $msg['message_id'],
-                    'receiver_id' => $msg['receiver_id'],
-                    'encrypted_content' => $msg['encrypted_content'],
-                    'sent_at' => $this->formatDate($msg['sent_at'])
+                    'userId' => $msg['receiver_id'],
+                    'encryptedMessage' => $msg['encrypted_content'],
+                    'date' => $this->formatDate($msg['sent_at'])
                 ];
             }, $messages);
-
             // Si hay mensajes, enviarlos a la API de terceros
             if (!empty($formattedMessages)) {
-                $thirdPartyApiUrl = 'http://encrypt-service:90/?action=decrypt'; // URL de ejemplo
-
+                $thirdPartyApiUrl = Env::env("URL_CRYPTO") . '?action=decrypt'; // URL de ejemplo
                 // Configurar la petición cURL
                 $ch = curl_init($thirdPartyApiUrl);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -320,33 +323,35 @@ class Chat
                 curl_close($ch);
 
                 // Verificar si la petición fue exitosa
-                if ($httpCode === 200) {
-                    $decodedResponse = json_decode($response, true);
-
-                    // Caso 1: JSON inválido
-                    if (json_last_error() !== JSON_ERROR_NONE) {
-                        return HttpHelper::sendJsonResponse(
-                            ["error" => "La API de terceros devolvió un JSON inválido"],
-                            502 // Bad Gateway
-                        );
-                    }
-
-                    // Caso 2: Falta la clave 'messages'
-                    if (!isset($decodedResponse['messages'])) {
-                        return HttpHelper::sendJsonResponse(
-                            ["error" => "La API de terceros no devolvió mensajes descifrados"],
-                            502
-                        );
-                    }
-
-                    // Éxito: Reemplazar mensajes cifrados por los descifrados
-                    $formattedMessages = $decodedResponse['messages'];
-                } else {
-                    return HttpHelper::sendJsonResponse([
-                        "error" => "Error al desencriptar los mensajes",
-                        "detalles" => [$response, "code" => $httpCode]
-                    ], 500);
+                // if ($httpCode === 200) {
+                $decodedResponse = json_decode($response, true);
+                // Caso 1: JSON inválido
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    return HttpHelper::sendJsonResponse(
+                        ["error" => "La API de terceros devolvió un JSON inválido"],
+                        502 // Bad Gateway
+                    );
                 }
+
+                // Caso 2: Falta la clave 'messages'
+                if (!isset($decodedResponse['messages'])) {
+                    return HttpHelper::sendJsonResponse(
+                        [
+                            "error" => "La API de terceros no devolvió mensajes descifrados",
+                            "detalles" => $decodedResponse
+                        ],
+                        502
+                    );
+                }
+
+                // Éxito: Reemplazar mensajes cifrados por los descifrados
+                $formattedMessages = $decodedResponse['messages'];
+                // } else {
+                //     return HttpHelper::sendJsonResponse([
+                //         "error" => "Error al desencriptar los mensajes",
+                //         "detalles" => [$response, "code" => $httpCode]
+                //     ], 500);
+                // }
             }
 
             return HttpHelper::sendJsonResponse([
@@ -362,7 +367,7 @@ class Chat
             return HttpHelper::sendJsonResponse(["errores" => $e->getMessages()], 400);
         } catch (\Exception $e) {
             return HttpHelper::sendJsonResponse([
-                "error" => "Error interno del servidor",
+                "error" => "Error interno del servidor 3",
                 "detalles" => $e->getMessage()
             ], 500);
         }
