@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 require __DIR__ . '/../vendor/autoload.php';
@@ -78,6 +79,12 @@ try {
         //     $userService->checkUser();
         //     break;
 
+        
+        // case $requestUri === '/users/public-key' && $method === 'GET':
+        //     $data = HttpHelper::getJsonData();
+        //     $userService->getUserPublicKey($data);
+        //     break;
+
         default:
             HttpHelper::sendJsonResponse([
                 "error" => "Endpoint no encontrado",
@@ -86,7 +93,8 @@ try {
                     "GET /users/me" => "Ver datos del usuario",
                     "GET /users/{username}" => "Obtener información de usuario",
                     "POST /login" => "Iniciar sesión",
-                    // "GET /auth/check" => "Verificar token JWT"
+                    // "GET /auth/check" => "Verificar token JWT",
+                    // "GET /users/public-key" => "Obtener clave pública de un usuario (requiere user_id en JSON)"
                 ]
             ], 404);
     }
