@@ -112,15 +112,17 @@ class User
             if (json_last_error() !== JSON_ERROR_NONE) {
                 $this->db->rollBack();
                 return HttpHelper::sendJsonResponse(
-                    ["error" => "Respuesta inválida de la API de claves"],
+                    ["error" => "Respuesta inválida de la API de claves",
+                    "detalles" => $decodedResponse],
                     502
                 );
             }
 
-            if (!isset($decodedResponse['publicKey'])) {
+            if (!isset($decodedResponse['userId'])) {
                 $this->db->rollBack();
                 return HttpHelper::sendJsonResponse(
-                    ["error" => "La API no devolvió una clave pública válida"],
+                    ["error" => "La API no devolvió una clave pública válida",
+                    "detalles" => $decodedResponse],
                     502
                 );
             }
@@ -359,14 +361,16 @@ class User
 
             if (json_last_error() !== JSON_ERROR_NONE) {
                 return HttpHelper::sendJsonResponse(
-                    ["error" => "Respuesta inválida de la API de claves"],
+                    ["error" => "Respuesta inválida de la API de claves",
+                            "detalles" => $decodedResponse],
                     502
                 );
             }
 
             if (!isset($decodedResponse['publicKey'])) {
                 return HttpHelper::sendJsonResponse(
-                    ["error" => "La API no devolvió una clave pública válida"],
+                    ["error" => "La API no devolvió una clave pública válida",
+                    "detalles" => $decodedResponse],
                     502
                 );
             }

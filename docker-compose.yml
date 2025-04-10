@@ -187,16 +187,19 @@ services:
       context: ./encrypt_service
       dockerfile: DockerFile
     container_name: encrypt-service
+    ports:
+      - "8900:90"  # Puerto diferente al original
     restart: always
+    networks:
+      chiwi_network:
+        aliases:
+          - encrypt_service
     volumes:
       - ./encrypt_service:/var/www/html  # Crea esta carpeta
     environment:
       - ENCRYPTION_MASTER_KEY=PARALELEPIPEDO
       - KEYS_DIRECTORY=/keys/
       - OPENSSL_DIR=/etc/ssl/openssl.cnf
-    networks:
-      chiwi_network:
-        aliases:
-          - encrypt_service
-    ports:
-      - "8900:90"  # Puerto diferente al original
+      - APACHE_RUN_USER=www-data
+      - APACHE_RUN_GROUP=www-data
+    env_file: ".env"

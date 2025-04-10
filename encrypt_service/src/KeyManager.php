@@ -1,5 +1,6 @@
 <?php
 namespace ChiwiCrypt;
+use ChiwiCrypt\utils\Validate;
 class KeyManager
 {
   private $keysDir;
@@ -17,8 +18,7 @@ class KeyManager
   }
   private function initVault()
   {
-    $vaultFile = $this->keysDir . 'vault.dat';
-
+    $vaultFile = "{$this->keysDir}vault.dat";
     if (!file_exists($vaultFile)) {
       file_put_contents($vaultFile, json_encode(['vault' => [], 'iv' => base64_encode(random_bytes(16))]));
       chmod($vaultFile, 0600);
@@ -41,9 +41,9 @@ class KeyManager
     return $decoded;
   }
 
-  private function saveVault()
+  private function saveVault(): void
   {
-    $vaultFile = $this->keysDir . 'vault.dat';
+    $vaultFile = "{$this->keysDir}vault.dat";
     // Preparar datos para guardar (codificar IV en base64)
     $saveData = $this->passphraseVault;
     $saveData['iv'] = base64_encode($saveData['iv']);
@@ -55,38 +55,41 @@ class KeyManager
       fclose($fp);
       chmod($vaultFile, 0600);
     } else {
-      throw new \Exception("No se pudo bloquear el archivo vault para escritura");
+      throw new \RuntimeException("No se pudo bloquear el archivo vault para escritura");
     }
+    return;
   }
 
-  public function storePassphrase($userId, $passphrase)
+  public function storePassphrase(array $data): void
   {
-    if (empty($userId) || empty($passphrase)) {
-      throw new \Exception("UserId y passphrase son requeridos");
+    $keys = ['userId', 'passphrase'];
+    $validArray = Validate::validateArray($data, $keys);
+    if (!empty($validArray)) {
+      throw new \InvalidArgumentException("Faltan valores del passphrase: " . implode(", ", $validArray));
     }
     // Asegurar que el IV está disponible
     if (!isset($this->passphraseVault['iv'])) {
       $this->passphraseVault['iv'] = random_bytes(16);
     }
     $encrypted = openssl_encrypt(
-      $passphrase,
+      $data['passphrase'],
       'aes-256-cbc',
       $this->encryptionKey,
       OPENSSL_RAW_DATA,
       $this->passphraseVault['iv']
     );
-    if ($encrypted === false) {
+    if (empty($encrypted)) {
       throw new \Exception("Error cifrando passphrase: " . openssl_error_string());
     }
-    $this->passphraseVault['vault'][$userId] = base64_encode($encrypted);
+    $this->passphraseVault['vault'][$data['userId']] = base64_encode($encrypted);
     $this->saveVault();
+    return;
   }
   public function getPassphrase($userId)
   {
     if (!isset($this->passphraseVault['vault'][$userId])) {
-      return null;
+      throw new \UnexpectedValueException("Error al obtener la passphrase del usuario", 1);
     }
-
     return openssl_decrypt(
       base64_decode($this->passphraseVault['vault'][$userId]),
       'aes-256-cbc',
@@ -95,44 +98,46 @@ class KeyManager
       $this->passphraseVault['iv']
     );
   }
-  public function storeKeys($userId, $publicKey, $privateKey)
+  public function storeKeys($userId, $publicKey, $privateKey): void
   {
-    try {
-      if ($this->keyExists($userId)) {
-        throw new \Exception("Ya existe la clave de este usuario");
-      }
-      // Almacenar clave pública
-      file_put_contents($this->keysDir . "{$userId}_public.pem", $publicKey);
-      chmod($this->keysDir . "{$userId}_public.pem", 0644);
-      // Cifrar y almacenar clave privada
-      $encryptedPrivate = $this->encryptPrivateKey($privateKey);
-      file_put_contents($this->keysDir . "{$userId}_private.enc", $encryptedPrivate);
-      chmod($this->keysDir . "{$userId}_private.enc", 0600);
+    if ($this->keyExists($userId)) {
+      throw new \InvalidArgumentException("Ya existe la clave de este usuario");
+    }
+    // Almacenar clave pública
+    file_put_contents("{$this->keysDir}{$userId}_public.pem", $publicKey);
+    chmod("{$this->keysDir}{$userId}_public.pem", 0644);
+    // Cifrar y almacenar clave privada
+    $encryptedPrivate = $this->encryptPrivateKey($privateKey);
+    file_put_contents("{$this->keysDir}{$userId}_private.enc", $encryptedPrivate);
+    chmod("{$this->keysDir}{$userId}_private.enc", 0600);
+    return;
+  }
 
-    } catch (\Exception $e) {
-      throw new \Exception($e->getMessage());
+  public function getPublicKey(string $userId)
+  {
+    $file = "{$this->keysDir}{$userId}_public.pem";
+    if (!file_exists($file)) {
+      throw new \UnexpectedValueException("No existe llave pública para este usuario");
 
     }
+    return openssl_pkey_get_public(file_get_contents($file)) ?? null;
   }
 
-  public function getPublicKey($userId)
+  public function getPrivateKey(string $userId)
   {
-    $file = $this->keysDir . "{$userId}_public.pem";
-    return file_exists($file) ? openssl_pkey_get_public(file_get_contents($file)) : null;
-  }
-
-  public function getPrivateKey($userId)
-  {
-    $file = $this->keysDir . "{$userId}_private.enc";
+    $file = "{$this->keysDir}{$userId}_private.enc";
     if (!file_exists($file)) {
-      return null;
+      throw new \RuntimeException("No se encontró la clave privada del usuario");
     }
     $passphrase = $this->getPassphrase($userId);
+    if (empty($passphrase)) {
+      throw new \UnexpectedValueException("No se encontró la passphrase del usuario");
+    }
     $encrypted = file_get_contents($file);
     $privateKeyPem = $this->decryptPrivateKey($encrypted);
     if ($passphrase) {
       $privateKey = openssl_pkey_get_private($privateKeyPem, $passphrase);
-      if (!$privateKey) {
+      if (empty($privateKey)) {
         throw new \Exception("Error al descifrar clave privada con passphrase: " . openssl_error_string());
       }
       return $privateKey;
@@ -140,7 +145,7 @@ class KeyManager
     return openssl_pkey_get_private($privateKeyPem);
   }
 
-  private function encryptPrivateKey($privateKey)
+  private function encryptPrivateKey($privateKey): string
   {
     // Cifrado adicional con clave maestra
     $iv = openssl_random_pseudo_bytes(16);
@@ -151,12 +156,14 @@ class KeyManager
       OPENSSL_RAW_DATA,
       $iv
     );
-
     return base64_encode($iv . $encrypted);
   }
 
   private function decryptPrivateKey($encrypted, $passphrase = null)
   {
+    if (empty($encrypted)) {
+      throw new \InvalidArgumentException("No se recibio la llave encriptada");
+    }
     $data = base64_decode($encrypted);
     $iv = substr($data, 0, 16);
     $encrypted = substr($data, 16);

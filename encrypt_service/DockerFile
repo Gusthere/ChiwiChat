@@ -1,6 +1,10 @@
-FROM php:8.3.16-apache
+FROM php:8.2-apache
 
-RUN apt-get update && apt-get install -y \
+RUN chown -R www-data:www-data /var/www/html \
+    && find /var/www/html -type d -exec chmod 755 {} \; \
+    && find /var/www/html -type f -exec chmod 644 {} \;
+
+    RUN apt-get update && apt-get install -y \
     build-essential \
     libpng-dev \
     libjpeg-dev \
@@ -14,17 +18,19 @@ RUN apt-get update && apt-get install -y \
     git \
     curl \
     mariadb-client \
+    libicu-dev \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) \
-        pdo \
-        pdo_mysql \
-        mbstring \
-        exif \
-        pcntl \
-        bcmath \
-        gd \
-        xml \
-        zip
+    pdo \
+    pdo_mysql \
+    mbstring \
+    exif \
+    pcntl \
+    bcmath \
+    gd \
+    xml \
+    zip \
+    intl
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
@@ -36,11 +42,11 @@ COPY default.conf /etc/apache2/sites-available/000-default.conf
 RUN a2enmod rewrite
 
 RUN composer install --no-dev --no-interaction --optimize-autoloader \
-    && chown -R www-data:www-data /var/www/html
+  && chown -R www-data:www-data /var/www/html
 
 RUN echo "Listen 90" > /etc/apache2/ports.conf
 
-HEALTHCHECK --interval=1m --timeout=10s \    
+HEALTHCHECK --interval=1m --timeout=10s \
   CMD curl -f http://localhost/ || exit 1
-    
+   
 EXPOSE 90
