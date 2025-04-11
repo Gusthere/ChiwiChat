@@ -73,13 +73,13 @@ class Auth
             self::handleError(
                 'El token ha expirado', 
                 401, // Unauthorized
-                // ['token_expirado' => true, 'puede_refrescar' => true]
+                ['puedeRefrescar' => true]
             );
         } catch (BeforeValidException $e) {
             self::handleError(
                 'El token aún no es válido', 
                 401, // Unauthorized
-                // ['token_no_valido_aun' => true]
+                ['token_no_valido_aun' => true]
             );
         } catch (SignatureInvalidException $e) {
             self::handleError(

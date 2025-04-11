@@ -76,7 +76,7 @@ class User
 
             $id = $this->db->lastInsertId();
 
-            $url = Env::env('URL_CRYPTO').'?action=generate-keys';
+            $url = Env::env('URL_CRYPTO') . '?action=generate-keys';
             $jsonData = [
                 "userId" => $id
             ];
@@ -112,8 +112,10 @@ class User
             if (json_last_error() !== JSON_ERROR_NONE) {
                 $this->db->rollBack();
                 return HttpHelper::sendJsonResponse(
-                    ["error" => "Respuesta inválida de la API de claves",
-                    "detalles" => $decodedResponse],
+                    [
+                        "error" => "Respuesta inválida de la API de claves",
+                        "detalles" => $decodedResponse
+                    ],
                     502
                 );
             }
@@ -121,8 +123,10 @@ class User
             if (!isset($decodedResponse['userId'])) {
                 $this->db->rollBack();
                 return HttpHelper::sendJsonResponse(
-                    ["error" => "La API no devolvió una clave pública válida",
-                    "detalles" => $decodedResponse],
+                    [
+                        "error" => "La API no devolvió una clave pública válida",
+                        "detalles" => $decodedResponse
+                    ],
                     502
                 );
             }
@@ -245,9 +249,15 @@ class User
             }
 
             $token = Auth::generateToken(["username" => $user["username"], "id" => $user["id"]]);
+            $refreshToken = Auth::generateToken(["username" => $user["username"], "id" => $user["id"]], 24 * 60 * 60, 'JWT_SECRET_REFRESH');
+
+            $updateTokenQuery = $this->db->prepare("UPDATE users SET refreshToken = :refreshToken WHERE id = :id");
+            $updateTokenQuery->execute(['refreshToken' => $refreshToken, 'id' => $user['id']]);
+
             return HttpHelper::sendJsonResponse([
                 "mensaje" => "Inicio de sesión exitoso",
                 "token" => $token,
+                "refreshToken" => $refreshToken,
                 "usuario" => $user["username"]
             ]);
         } catch (PDOException $e) {
@@ -258,42 +268,53 @@ class User
         }
     }
 
-    // public function checkUser()
-    // {
-    //     try {
-    //         $stmt = $this->db->prepare("
-    //             SELECT username 
-    //             FROM users 
-    //             WHERE username = :username
-    //             LIMIT 1
-    //         ");
-    //         $stmt->bindParam(':username', $this->userData['username'], PDO::PARAM_STR);
-    //         $stmt->execute();
+    public function refreshAccessToken()
+    {
+        try {
+            $query = $this->db->prepare("SELECT id, username, refreshToken FROM users WHERE id = :id AND username = :username AND refreshToken = :refreshToken");
 
-    //         $user = $stmt->fetch(PDO::FETCH_ASSOC);
+            // Bind los parámetros
+            $query->bindParam(':id', $this->userData['id'], PDO::PARAM_INT);
+            $query->bindParam(':username', $this->userData['username'], PDO::PARAM_STR);
+            $query->bindParam(':refreshToken', $this->userData['token'], PDO::PARAM_STR);
 
-    //         if (!$user) {
-    //             throw new \Exception("Credenciales inválidas");
-    //         }
+            $query->execute();
+            $user = $query->fetch(PDO::FETCH_ASSOC);
 
-    //         return HttpHelper::sendJsonResponse([
-    //             "mensaje" => "Token válido",
-    //             "usuario" => $user['username']
-    //         ]);
-    //     } catch (\Exception $e) {
-    //         return HttpHelper::sendJsonResponse(
-    //             ["error" => "Error al verificar el token: " . $e->getMessage()],
-    //             401
-    //         );
-    //     }
-    // }
+            if (!$user) {
+                return HttpHelper::sendJsonResponse(
+                    ['error' => 'Invalid refresh token'],
+                    403
+                );
+            }
+
+            $accessToken = Auth::generateToken(['id' => $user['id'], 'username' => $user['username']]);
+            $refreshToken = Auth::generateToken(["username" => $user["username"], "id" => $user["id"]], 24 * 60 * 60, 'JWT_SECRET_REFRESH');
+
+            $updateTokenQuery = $this->db->prepare("UPDATE users SET refreshToken = :refreshToken WHERE id = :id");
+            $updateTokenQuery->execute(['refreshToken' => $refreshToken, 'id' => $user['id']]);
+
+            return HttpHelper::sendJsonResponse(
+                [
+                    "token" => $accessToken,
+                    "refreshToken" => $refreshToken
+                ]
+            );
+
+        } catch (PDOException $e) {
+            return HttpHelper::sendJsonResponse(
+                ["error" => "Error al verificar información: " . $e->getMessage()],
+                500
+            );
+        }
+    }
 
     public function Me()
     {
         try {
             // Verificar que la clave del token coincida con la de la base de datos
             $stmt = $this->db->prepare("
-                SELECT *
+                SELECT id, username, nombre, apellido, email, createTime
                 FROM users 
                 WHERE username = :username
                 LIMIT 1
@@ -331,7 +352,7 @@ class User
         }
 
         $userId = $data['username'];
-        $thirdPartyApiUrl = $url = Env::env('URL_CRYPTO').'?action=public-key&userId=' . urlencode($userId);
+        $thirdPartyApiUrl = $url = Env::env('URL_CRYPTO') . '?action=public-key&userId=' . urlencode($userId);
         try {
             // Configurar la petición cURL
             $ch = curl_init($thirdPartyApiUrl);
@@ -361,16 +382,20 @@ class User
 
             if (json_last_error() !== JSON_ERROR_NONE) {
                 return HttpHelper::sendJsonResponse(
-                    ["error" => "Respuesta inválida de la API de claves",
-                            "detalles" => $decodedResponse],
+                    [
+                        "error" => "Respuesta inválida de la API de claves",
+                        "detalles" => $decodedResponse
+                    ],
                     502
                 );
             }
 
             if (!isset($decodedResponse['publicKey'])) {
                 return HttpHelper::sendJsonResponse(
-                    ["error" => "La API no devolvió una clave pública válida",
-                    "detalles" => $decodedResponse],
+                    [
+                        "error" => "La API no devolvió una clave pública válida",
+                        "detalles" => $decodedResponse
+                    ],
                     502
                 );
             }

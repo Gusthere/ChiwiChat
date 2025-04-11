@@ -20,43 +20,34 @@ $dotenv->load();
 
 class Auth
 {
-    public static function generateToken($data)
+    public static function generateToken($data, $exp = 3600, $key = null)
     {
-
+        // Definir la clave por defecto según el tipo de token
+        $key = $key ?? 'JWT_SECRET';
+        
         $payload = [
             'iat' => time(),
-            'exp' => time() + (60 * 60), // 1 hora
+            'exp' => time() + $exp,
             'data' => $data
         ];
-        return JWT::encode($payload, Env::env('JWT_SECRET'), 'HS256');
+        return JWT::encode($payload, Env::env($key), 'HS256');
     }
 
-    public static function validateToken()
+    public static function validateToken($key = null)
     {
         try {
-            // Verificar si el encabezado Authorization existe
             $headers = getallheaders();
             $authHeader = $headers['Authorization'] ?? '';
             
             if (empty($authHeader)) {
-                throw new \Exception(
-                    'Encabezado de autorización faltante', 
-                    400 // Bad Request
-                );
+                throw new Exception("No authorization token provided");
             }
+            
+            $token = str_replace('Bearer ', '', $authHeader);
+            $key = $key ?? 'JWT_SECRET';
+            
+            $decoded = JWT::decode($token, new Key(Env::env($key), 'HS256'));
 
-            // Extraer el token
-            if (!preg_match('/Bearer\s(\S+)/', $authHeader, $matches)) {
-                throw new \Exception(
-                    'Formato de autorización inválido. Se esperaba: Bearer {token}', 
-                    400
-                );
-            }
-
-            $token = $matches[1];
-
-            // Decodificar el token
-            $decoded = JWT::decode($token, new Key(Env::env('JWT_SECRET'), 'HS256'));
             $decodedArray = json_decode(json_encode($decoded), true);
             $data = $decodedArray['data'] ?? null;
 
@@ -68,19 +59,22 @@ class Auth
                 );
             }
 
+            $data['token'] = $token;
+
             return $data;
             
         } catch (ExpiredException $e) {
+            $refresh = ($key == 'JWT_SECRET');
             self::handleError(
                 'El token ha expirado', 
                 401, // Unauthorized
-                ['token_expirado' => true, 'puede_refrescar' => true]
+                ['puedeRefrescar' => $refresh]
             );
         } catch (BeforeValidException $e) {
             self::handleError(
                 'El token aún no es válido', 
                 401, // Unauthorized
-                ['token_no_valido_aun' => true]
+                ['tokenNoValidoAun' => true]
             );
         } catch (SignatureInvalidException $e) {
             self::handleError(

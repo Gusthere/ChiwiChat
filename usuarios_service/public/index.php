@@ -44,7 +44,8 @@ if ($method === 'GET' && preg_match('#^/users/([\w-]+)$#', $requestUri)) {
 
 if (!isset($publicEndpoints[$currentRoute])) {
     // Validar token JWT para rutas protegidas
-    $userData = Auth::validateToken();
+    $key = ($requestUri === '/refresh' && $method === 'POST') ? 'JWT_SECRET_REFRESH' : null;
+    $userData = Auth::validateToken($key);
     // Pasar los datos del usuario al servicio si es necesario
     $userService->setUserData($userData);
 }
@@ -77,6 +78,11 @@ try {
         case $requestUri === '/login' && $method === 'POST':
             $data = HttpHelper::getJsonData();
             $userService->login($data['username'] ?? '');
+            break;
+        
+        // POST /refresh - Refrescar el token (protegido)
+        case $requestUri === '/refresh' && $method === 'POST':
+            $userService->refreshAccessToken();
             break;
 
         // GET /auth/check - Verificar token (protegido)

@@ -30,6 +30,10 @@ class CreateUsersTable extends AbstractMigration
             'limit' => 100,
             'null' => false
         ])
+        ->addColumn('refreshToken', 'text', [
+            'null' => true,
+            'comment' => 'Access Token for user authentication'
+        ])
         ->addColumn('createTime', 'datetime', [
             'default' => 'CURRENT_TIMESTAMP',
             'null' => true,

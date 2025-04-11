@@ -24,6 +24,7 @@
     "scripts": {
         "start": "php -S localhost:8080 -t public/",
         "migrate": "./vendor/bin/phinx migrate",
-        "migrate:rollback": "./vendor/bin/phinx rollback "
+        "migrate:rollback": "./vendor/bin/phinx rollback ",
+        "migrate:refresh": "./vendor/bin/phinx migrate -t 0 -e production && ./vendor/bin/phinx migrate -e production"
     }
 }

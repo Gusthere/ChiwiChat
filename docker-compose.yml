@@ -108,7 +108,7 @@ services:
       - "8888:80"
     depends_on:
       - db_users
-      - encrypt_service
+      
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
       interval: 10s
@@ -173,7 +173,6 @@ services:
       - "8890:80"  # Puerto diferente al original
     depends_on:
       - mongodb
-      - encrypt_service
 
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
@@ -182,24 +181,24 @@ services:
       retries: 5
     command: apache2-foreground
 
-  encrypt_service:
-    build: 
-      context: ./encrypt_service
-      dockerfile: DockerFile
-    container_name: encrypt-service
-    ports:
-      - "8900:90"  # Puerto diferente al original
-    restart: always
-    networks:
-      chiwi_network:
-        aliases:
-          - encrypt_service
-    volumes:
-      - ./encrypt_service:/var/www/html  # Crea esta carpeta
-    environment:
-      - ENCRYPTION_MASTER_KEY=PARALELEPIPEDO
-      - KEYS_DIRECTORY=/keys/
-      - OPENSSL_DIR=/etc/ssl/openssl.cnf
-      - APACHE_RUN_USER=www-data
-      - APACHE_RUN_GROUP=www-data
-    env_file: ".env"
+#  encrypt_service:
+#    build: 
+#      context: ./encrypt_service
+#      dockerfile: DockerFile
+#    container_name: encrypt-service
+#    ports:
+#      - "8900:90"  # Puerto diferente al original
+#    restart: always
+#    networks:
+#      chiwi_network:
+#        aliases:
+#          - encrypt_service
+#    volumes:
+#      - ./encrypt_service:/var/www/html  # Crea esta carpeta
+#    environment:
+#      - ENCRYPTION_MASTER_KEY=PARALELEPIPEDO
+#      - KEYS_DIRECTORY=/keys/
+#      - OPENSSL_DIR=/etc/ssl/openssl.cnf
+#      - APACHE_RUN_USER=www-data
+#      - APACHE_RUN_GROUP=www-data
+#    env_file: ".env"
