@@ -335,8 +335,8 @@ class Chat
                     );
                 }
 
-                // Caso 2: Falta la clave 'messages'
-                if (!isset($decodedResponse['messages'])) {
+                // Caso 2: Falta la clave 'decryptedMessage'
+                if (!isset($decodedResponse['decryptedMessage'])) {
                     return HttpHelper::sendJsonResponse(
                         [
                             "error" => "La API de terceros no devolvió mensajes descifrados",
@@ -347,7 +347,7 @@ class Chat
                 }
 
                 // Éxito: Reemplazar mensajes cifrados por los descifrados
-                $formattedMessages = $decodedResponse['messages'];
+                $formattedMessages = $decodedResponse['decryptedMessage'];
                 // } else {
                 //     return HttpHelper::sendJsonResponse([
                 //         "error" => "Error al desencriptar los mensajes",
