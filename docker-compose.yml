@@ -99,7 +99,7 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - APP_ENV=production
       - APP_DEBUG=false
-      - URL_CRYPTO=http://encrypt-service:90/
+      - URL_CRYPTO=http://chiwicrypt:80/
     networks:
       chiwi_network:
         aliases:
@@ -164,7 +164,7 @@ services:
       - MONGO_DATABASE=${MONGO_DATABASE}
       - APP_ENV=production
       - APP_DEBUG=false
-      - URL_CRYPTO=http://encrypt-service:90/
+      - URL_CRYPTO=http://chiwicrypt:80/
     networks:
       chiwi_network:
         aliases:
