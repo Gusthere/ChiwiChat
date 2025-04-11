@@ -329,7 +329,8 @@ class Chat
                 // Caso 1: JSON inválido
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     return HttpHelper::sendJsonResponse(
-                        ["error" => "La API de terceros devolvió un JSON inválido"],
+                        ["error" => "La API de terceros devolvió un JSON inválido",
+                        "detalles" => $response],
                         502 // Bad Gateway
                     );
                 }
