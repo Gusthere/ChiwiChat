@@ -119,6 +119,7 @@ services:
 
   chiwicrypt:
     image: gusher/chiwichat:encrypt-latest  # Usando la imagen de Docker Hub
+    restart: always
     ports:
       - "5000:80"
     networks:
