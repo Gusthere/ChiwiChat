@@ -300,7 +300,6 @@ class User
                     "refreshToken" => $refreshToken
                 ]
             );
-
         } catch (PDOException $e) {
             return HttpHelper::sendJsonResponse(
                 ["error" => "Error al verificar información: " . $e->getMessage()],
@@ -351,8 +350,22 @@ class User
             return HttpHelper::sendJsonResponse(["error" => $e->getMessages()], 400);
         }
 
-        $userId = $data['username'];
-        $thirdPartyApiUrl = $url = Env::env('URL_CRYPTO') . '?action=public-key&userId=' . urlencode($userId);
+        $stmt = $this->db->prepare("SELECT id FROM users Where username = :username");
+        $stmt->bindParam(':username', $data['username'], PDO::PARAM_STR);
+        $stmt->execute();
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$user)
+            return HttpHelper::sendJsonResponse(
+                [
+                    "error" => "Usuario no registrado"
+                ],
+                404
+            );
+
+        $userId = $user['id'];
+
+        $thirdPartyApiUrl = Env::env('URL_CRYPTO') . '?action=public-key&userId=' . urlencode($userId);
         try {
             // Configurar la petición cURL
             $ch = curl_init($thirdPartyApiUrl);
@@ -402,8 +415,7 @@ class User
 
             return HttpHelper::sendJsonResponse([
                 "mensaje" => "Clave pública obtenida correctamente",
-                "publicKey" => $decodedResponse['publicKey'],
-                "username" => $userId
+                "publicKey" => $decodedResponse['publicKey']
             ]);
         } catch (\Exception $e) {
             return HttpHelper::sendJsonResponse(
