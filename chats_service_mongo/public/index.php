@@ -11,7 +11,7 @@ use Chiwichat\Chats\Utils\Auth;
 // Configuración de headers
 header("Content-Type: application/json");
 header("Access-Control-Allow-Origin: *");
-header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
+header("Access-Control-Allow-Methods: GET, POST, PATCH, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type, Authorization");
 
 date_default_timezone_set("America/Caracas");
@@ -65,6 +65,11 @@ try {
             $chat->getConversationMessages($matches[1], $data);
             break;
 
+        case preg_match('#^/conversations/([a-f\d]{24})/messages$#i', $requestUri, $matches) && $method === 'PATCH':
+            $data = HttpHelper::getJsonData();
+            $chat->updateMessagesStatus($matches[1], $data);
+            break;
+
         default:
             HttpHelper::sendJsonResponse([
                 "error" => "Endpoint no encontrado",
@@ -73,7 +78,8 @@ try {
                     "GET /conversations" => "Obtener conversaciones del usuario",
                     "GET /conversations/{conversationId}" => "Obtener conversación específica",
                     "POST /messages" => "Enviar mensaje a una conversación",
-                    "GET /conversations/{conversationId}/messages" => "Obtener mensajes de una conversación"
+                    "GET /conversations/{conversationId}/messages" => "Obtener mensajes de una conversación",
+                    "PATCH /conversations/{conversationId}/messages" => "Actualizar estatus de los mensajes"
                 ]
             ], 404);
     }

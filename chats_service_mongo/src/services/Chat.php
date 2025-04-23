@@ -329,8 +329,10 @@ class Chat
                 // Caso 1: JSON inválido
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     return HttpHelper::sendJsonResponse(
-                        ["error" => "La API de terceros devolvió un JSON inválido",
-                        "detalles" => $response],
+                        [
+                            "error" => "La API de terceros devolvió un JSON inválido",
+                            "detalles" => $response
+                        ],
                         502 // Bad Gateway
                     );
                 }
@@ -375,6 +377,84 @@ class Chat
         }
     }
 
+    public function updateMessagesStatus($conversationId, $requestData = [])
+    {
+        try {
+            // Validación de parámetros
+            v::stringType()->notEmpty()->assert($conversationId);
+            v::keySet(
+                v::key('beforeDate', v::stringType()->notEmpty()),
+                v::key('status', v::intType()->between(1, 2))
+            )->assert($requestData);
+
+            $objectIdConversationId = new ObjectId($conversationId);
+            $userId = (int) $this->userData['id'];
+            $newStatus = (int) $requestData['status'];
+
+            // Procesamiento de fecha con ajuste de 1 segundo
+            $beforeDate = new DateTime($requestData['beforeDate']);
+            $beforeDate->modify('+1 second'); // Añadimos 1 segundo
+            $utcBeforeDate = new UTCDateTime($beforeDate->getTimestamp() * 1000);
+
+            // 1. Verificar que el usuario pertenece a la conversación
+            $conversation = $this->conversationsCollection->findOne([
+                '_id' => $objectIdConversationId,
+                '$or' => [
+                    ['user1Id' => $userId],
+                    ['user2Id' => $userId]
+                ]
+            ]);
+
+            if (!$conversation) {
+                return HttpHelper::sendJsonResponse(
+                    ["error" => "Conversación no encontrada o no autorizado"],
+                    404
+                );
+            }
+
+            // 2. Actualizar mensajes que cumplan:
+            // - receiverId = usuario actual
+            // - status < nuevo status
+            // - sentAt <= fecha proporcionada + 1 segundo
+            $updateResult = $this->conversationsCollection->updateOne(
+                [
+                    '_id' => $objectIdConversationId,
+                    'messages' => [
+                        '$elemMatch' => [
+                            'receiverId' => $userId,
+                            'status' => ['$lt' => $newStatus],
+                            'sentAt' => ['$lte' => $utcBeforeDate]
+                        ]
+                    ]
+                ],
+                [
+                    '$set' => [
+                        'messages.$[elem].status' => $newStatus
+                    ]
+                ],
+                [
+                    'arrayFilters' => [
+                        [
+                            'elem.receiverId' => $userId,
+                            'elem.status' => ['$lt' => $newStatus],
+                            'elem.sentAt' => ['$lte' => $utcBeforeDate]
+                        ]
+                    ]
+                ]
+            );
+
+            return HttpHelper::sendJsonResponse([
+                "mensaje" => "Estatus actualizado",
+                "updatedCount" => $updateResult->getModifiedCount()
+            ]);
+        } catch (\Exception $e) {
+            return HttpHelper::sendJsonResponse([
+                "error" => "Error en la actualización",
+                "detalles" => $e->getMessage(),
+                "trace" => $e->getTraceAsString() // Solo para desarrollo
+            ], 500);
+        }
+    }
     /**
      * Formatea un objeto UTCDateTime de MongoDB a una cadena de fecha estándar.
      *
