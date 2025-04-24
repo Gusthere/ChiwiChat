@@ -249,7 +249,7 @@ class User
             }
 
             $token = Auth::generateToken(["username" => $user["username"], "id" => $user["id"]]);
-            $refreshToken = Auth::generateToken(["username" => $user["username"], "id" => $user["id"]], 24 * 60 * 60, 'JWT_SECRET_REFRESH');
+            $refreshToken = Auth::generateToken(["username" => $user["username"], "id" => $user["id"]], 7 * 24 * 60 * 60, 'JWT_SECRET_REFRESH');
 
             $updateTokenQuery = $this->db->prepare("UPDATE users SET refreshToken = :refreshToken WHERE id = :id");
             $updateTokenQuery->execute(['refreshToken' => $refreshToken, 'id' => $user['id']]);
@@ -289,7 +289,7 @@ class User
             }
 
             $accessToken = Auth::generateToken(['id' => $user['id'], 'username' => $user['username']]);
-            $refreshToken = Auth::generateToken(["username" => $user["username"], "id" => $user["id"]], 24 * 60 * 60, 'JWT_SECRET_REFRESH');
+            $refreshToken = Auth::generateToken(["username" => $user["username"], "id" => $user["id"]], 7 * 24 * 60 * 60, 'JWT_SECRET_REFRESH');
 
             $updateTokenQuery = $this->db->prepare("UPDATE users SET refreshToken = :refreshToken WHERE id = :id");
             $updateTokenQuery->execute(['refreshToken' => $refreshToken, 'id' => $user['id']]);
