@@ -58,7 +58,7 @@ class Chat
             $insertResult = $this->conversationsCollection->insertOne([
                 'user1Id' => (int) $this->userData['id'],
                 'user2Id' => (int) $data['userId'],
-                'createdAt' => new UTCDateTime(),
+                'updatedAt' => new UTCDateTime(),
                 'messages' => []
             ]);
 
@@ -117,7 +117,7 @@ class Chat
                     "conversationId" => (string) $conversation->_id,
                     "user1Id" => $conversation->user1Id,
                     "user2Id" => $conversation->user2Id,
-                    "createdAt" => $this->formatDate($conversation->createdAt), // Formatear fecha
+                    "updatedAt" => $this->formatDate($conversation->updatedAt), // Formatear fecha
                 ]
             ]);
         } catch (NestedValidationException $e) {
@@ -138,6 +138,8 @@ class Chat
                     ['user1Id' => (int) $this->userData['id']],
                     ['user2Id' => (int) $this->userData['id']],
                 ]
+            ], [
+                'sort' => ['updatedAt' => -1] // Orden descendente (más reciente primero)
             ])->toArray();
 
             $formattedConversations = array_map(function ($conv) {
@@ -145,19 +147,19 @@ class Chat
                     "conversationId" => (string) $conv->_id,
                     "user1Id" => $conv->user1Id,
                     "user2Id" => $conv->user2Id,
-                    "createdAt" => $this->formatDate($conv->createdAt), // Formatear fecha
+                    "updatedAt" => $this->formatDate($conv->updatedAt),
                 ];
             }, $conversations);
 
             return HttpHelper::sendJsonResponse([
-                "mensaje" => "Mensajes encontrados",
+                "mensaje" => "Conversaciones encontradas",
                 "conversations" => $formattedConversations,
                 "total" => count($formattedConversations)
             ]);
         } catch (\Exception $e) {
             return HttpHelper::sendJsonResponse(
                 ["error" => $e->getMessage()],
-                401
+                500 // Cambiado a 500 ya que es un error del servidor
             );
         }
     }
@@ -192,15 +194,20 @@ class Chat
 
             $updateResult = $this->conversationsCollection->updateOne(
                 ['_id' => $conversationId],
-                ['$push' => [
-                    'messages' => [
-                        'messageId' => $newMessageId,
-                        'receiverId' => $receiverId,
-                        'encryptedContent' => $data['content'],
-                        'sentAt' => new UTCDateTime(),
-                        'status' => 0
+                [
+                    '$push' => [
+                        'messages' => [
+                            'messageId' => $newMessageId,
+                            'receiverId' => $receiverId,
+                            'encryptedContent' => $data['content'],
+                            'sentAt' => new UTCDateTime(),
+                            'status' => 0
+                        ]
+                    ],
+                    '$set' => [
+                        'updatedAt' => new UTCDateTime()
                     ]
-                ]]
+                ]
             );
 
             if ($updateResult->getModifiedCount() > 0) {
@@ -279,10 +286,12 @@ class Chat
             // Continuación del pipeline
             $pipeline = array_merge($pipeline, [
                 ['$limit' => $limit],
-                ['$group' => [
-                    '_id' => '$_id',
-                    'messages' => ['$push' => '$messages']
-                ]]
+                [
+                    '$group' => [
+                        '_id' => '$_id',
+                        'messages' => ['$push' => '$messages']
+                    ]
+                ]
             ]);
 
             // Ejecutar la consulta
@@ -293,7 +302,7 @@ class Chat
             if (!empty($result)) {
                 $messages = $result[0]['messages'] instanceof \MongoDB\Model\BSONArray
                     ? $result[0]['messages']->getArrayCopy()
-                    : (array)$result[0]['messages'];
+                    : (array) $result[0]['messages'];
             }
 
             // Formatear los mensajes
