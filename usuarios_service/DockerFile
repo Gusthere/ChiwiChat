@@ -24,7 +24,9 @@ RUN apt-get update && apt-get install -y \
         bcmath \
         gd \
         xml \
-        zip
+        zip \
+    && pecl install mongodb redis \
+    && docker-php-ext-enable mongodb redis
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 

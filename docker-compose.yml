@@ -11,6 +11,8 @@ volumes:
   #   driver: local
   mongodb_data:  # Nuevo volumen para MongoDB
     driver: local
+  redis_data:                    # Volumen para persistir datos de Redis
+    driver: local
 
 services:
   db_users:
@@ -100,6 +102,8 @@ services:
       - APP_ENV=production
       - APP_DEBUG=false
       - URL_CRYPTO=http://chiwicrypt:80/
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     networks:
       chiwi_network:
         aliases:
@@ -165,6 +169,8 @@ services:
       - APP_ENV=production
       - APP_DEBUG=false
       - URL_CRYPTO=http://chiwicrypt:80/
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     networks:
       chiwi_network:
         aliases:
@@ -202,3 +208,16 @@ services:
 #      - APACHE_RUN_USER=www-data
 #      - APACHE_RUN_GROUP=www-data
 #    env_file: ".env"
+
+  redis:
+      image: redis:latest          # Usa la versión más reciente de Redis
+      container_name: redis
+      restart: always
+      ports:
+        - "6379:6379"             # Puerto estándar de Redis
+      volumes:
+        - redis_data:/data        # Persistencia de datos (requiere volumen)
+      networks:
+        chiwi_network:
+          aliases:
+            - redis               # Alias para acceder desde otros servicios
