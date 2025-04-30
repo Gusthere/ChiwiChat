@@ -258,7 +258,8 @@ class User
                 "mensaje" => "Inicio de sesión exitoso",
                 "token" => $token,
                 "refreshToken" => $refreshToken,
-                "usuario" => $user["username"]
+                "usuario" => $user["username"],
+                "userId" => $user["id"]
             ]);
         } catch (PDOException $e) {
             return HttpHelper::sendJsonResponse(
