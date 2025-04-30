@@ -39,6 +39,9 @@ class Chat
                 ->key('userId', v::intVal()->positive()
                     ->setName('ID de usuario')
                     ->setTemplate('{{name}} debe ser un número entero positivo'))
+                ->key('username', v::alnum()->noWhitespace()->length(3, 30)
+                    ->setName('Usuario')
+                    ->setTemplate('{{name}} debe contener solo letras y números (3-30 caracteres)'))
                 ->assert($data);
 
             $existingConversation = $this->conversationsCollection->findOne([
@@ -57,8 +60,10 @@ class Chat
 
             $insertResult = $this->conversationsCollection->insertOne([
                 'user1Id' => (int) $this->userData['id'],
+                'user1Username' => (string) $this->userData['username'],
                 'user2Id' => (int) $data['userId'],
-                'createdAt' => new UTCDateTime(),
+                'user2Username' => (string) $data['username'],
+                'updatedAt' => new UTCDateTime(),
                 'messages' => []
             ]);
 
@@ -116,8 +121,10 @@ class Chat
                 "conversation" => [
                     "conversationId" => (string) $conversation->_id,
                     "user1Id" => $conversation->user1Id,
+                    "user1Username" => $conversation->user1Username,
                     "user2Id" => $conversation->user2Id,
-                    "createdAt" => $this->formatDate($conversation->createdAt), // Formatear fecha
+                    "user2Username" => $conversation->user2Username,
+                    "updatedAt" => $this->formatDate($conversation->updatedAt), // Formatear fecha
                 ]
             ]);
         } catch (NestedValidationException $e) {
@@ -133,31 +140,135 @@ class Chat
     public function getMyConversations()
     {
         try {
-            $conversations = $this->conversationsCollection->find([
-                '$or' => [
-                    ['user1Id' => (int) $this->userData['id']],
-                    ['user2Id' => (int) $this->userData['id']],
-                ]
-            ])->toArray();
+            $userId = (int) $this->userData['id'];
 
+            $pipeline = [
+                [
+                    '$match' => [
+                        '$or' => [
+                            ['user1Id' => $userId],
+                            ['user2Id' => $userId]
+                        ]
+                    ]
+                ],
+                [
+                    '$addFields' => [
+                        'lastMessage' => [
+                            '$arrayElemAt' => ['$messages', -1]
+                        ],
+                        'unreadCount' => [
+                            '$size' => [
+                                '$filter' => [
+                                    'input' => '$messages',
+                                    'as' => 'msg',
+                                    'cond' => [
+                                        '$and' => [
+                                            ['$eq' => ['$$msg.status', 0]],
+                                            ['$eq' => ['$$msg.receiverId', $userId]]
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ]
+                ],
+                [
+                    '$sort' => ['updatedAt' => -1]
+                ],
+                [
+                    '$project' => [
+                        'conversationId' => ['$toString' => '$_id'],
+                        'user1Id' => 1,
+                        'user1Username' => 1,
+                        'user2Id' => 1,
+                        'user2Username' => 1,
+                        'updatedAt' => 1,
+                        'lastMessage' => 1,
+                        'unreadCount' => 1
+                    ]
+                ]
+            ];
+
+
+            $conversations = $this->conversationsCollection->aggregate($pipeline)->toArray();
+            // Preparar mensajes para desencriptación
+            $messagesToDecrypt = [];
+            $messageIndexMap = []; // Para mapear mensajes a conversaciones
+
+            foreach ($conversations as $index => $conv) {
+                if (isset($conv->lastMessage) && is_object($conv->lastMessage) && isset($conv->lastMessage->encryptedContent)) {
+                    $messagesToDecrypt[] = [
+                        'messageId' => (string) $conv->lastMessage->messageId,
+                        'userId' => $conv->lastMessage->receiverId,
+                        'encryptedMessage' => $conv->lastMessage->encryptedContent,
+                        'date' => $this->formatDate($conv->lastMessage->sentAt),
+                        'status' => $conv->lastMessage->status
+                    ];
+                    $messageIndexMap[] = $index;
+                }
+            }
+
+            // Desencriptar todos los mensajes en una sola llamada
+            if (!empty($messagesToDecrypt)) {
+                $thirdPartyApiUrl = Env::env("URL_CRYPTO") . '?action=decrypt';
+                $ch = curl_init($thirdPartyApiUrl);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['messages' => $messagesToDecrypt]));
+                curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+
+                $response = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+
+                if ($httpCode === 200) {
+                    $decodedResponse = json_decode($response, true);
+                    if (json_last_error() === JSON_ERROR_NONE && isset($decodedResponse['decryptedMessage'])) {
+                        // Asignar mensajes desencriptados a las conversaciones correspondientes
+                        foreach ($decodedResponse['decryptedMessage'] as $i => $decryptedMsg) {
+                            $convIndex = $messageIndexMap[$i];
+                            $conversations[$convIndex]->lastMessage->decryptedContent = $decryptedMsg['message'];
+                        }
+                    }
+                }
+            }
+
+            // Formatear conversaciones
             $formattedConversations = array_map(function ($conv) {
+                $lastMessage = null;
+
+                if (isset($conv->lastMessage) && is_object($conv->lastMessage)) {
+                    $lastMessage = [
+                        "message" => $conv->lastMessage->decryptedContent ?? $conv->lastMessage->encryptedContent ?? null,
+                        "receiverId" => $conv->lastMessage->receiverId ?? null,
+                        "sentAt" => isset($conv->lastMessage->sentAt)
+                            ? $this->formatDate($conv->lastMessage->sentAt)
+                            : null,
+                        "status" => $conv->lastMessage->status ?? null
+                    ];
+                }
+
                 return [
-                    "conversationId" => (string) $conv->_id,
+                    "conversationId" => $conv->conversationId,
                     "user1Id" => $conv->user1Id,
+                    "user1Username" => $conv->user1Username,
                     "user2Id" => $conv->user2Id,
-                    "createdAt" => $this->formatDate($conv->createdAt), // Formatear fecha
+                    "user2Username" => $conv->user2Username,
+                    "updatedAt" => $this->formatDate($conv->updatedAt),
+                    "lastMessage" => $lastMessage,
+                    "unreadCount" => $conv->unreadCount
                 ];
             }, $conversations);
 
             return HttpHelper::sendJsonResponse([
-                "mensaje" => "Mensajes encontrados",
+                "mensaje" => "Conversaciones encontradas",
                 "conversations" => $formattedConversations,
                 "total" => count($formattedConversations)
             ]);
         } catch (\Exception $e) {
             return HttpHelper::sendJsonResponse(
                 ["error" => $e->getMessage()],
-                401
+                500
             );
         }
     }
@@ -190,23 +301,81 @@ class Chat
             $newMessageId = new ObjectId();
             $receiverId = (int) ($this->userData['id'] == $conversation->user1Id) ? $conversation->user2Id : $conversation->user1Id;
 
+            $thirdPartyApiUrl = Env::env("URL_CRYPTO") . '?action=encrypt'; // URL de ejemplo
+            // Configurar la petición cURL
+            $ch = curl_init($thirdPartyApiUrl);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+                "senderId" => $this->userData['id'],
+                "recipientId" => $receiverId,
+                "message" => $data['content']
+            ]));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/json'
+            ]);
+
+            // Ejecutar la petición y obtener la respuesta
+            $response = curl_exec($ch);
+            curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            // Verificar si la petición fue exitosa
+
+            $decodedResponse = json_decode($response, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return HttpHelper::sendJsonResponse(
+                    [
+                        "error" => "La API de terceros devolvió un JSON inválido",
+                        "detalles" => $response
+                    ],
+                    502 // Bad Gateway
+                );
+            }
+
+            // Caso 2: Falta la clave 'decryptedMessage'
+            if (!isset($decodedResponse['encryptedMessage'])) {
+                return HttpHelper::sendJsonResponse(
+                    [
+                        "error" => "La API de terceros no devolvió mensaje cifrado",
+                        "detalles" => $decodedResponse
+                    ],
+                    502
+                );
+            }
+
+            $encryptedMesage = $decodedResponse['encryptedMessage'];
+
+            $now = new UTCDateTime(); // Fecha actual en formato MongoDB
+
             $updateResult = $this->conversationsCollection->updateOne(
                 ['_id' => $conversationId],
-                ['$push' => [
-                    'messages' => [
-                        'messageId' => $newMessageId,
-                        'receiverId' => $receiverId,
-                        'encryptedContent' => $data['content'],
-                        'sentAt' => new UTCDateTime(),
-                        'status' => 0
+                [
+                    '$push' => [
+                        'messages' => [
+                            'messageId' => $newMessageId,
+                            'receiverId' => $receiverId,
+                            'encryptedContent' => $encryptedMesage,
+                            'sentAt' => $now,
+                            'status' => 0
+                        ]
+                    ],
+                    '$set' => [
+                        'updatedAt' => $now
                     ]
-                ]]
+                ]
             );
 
             if ($updateResult->getModifiedCount() > 0) {
                 return HttpHelper::sendJsonResponse([
                     "mensaje" => "Mensaje enviado",
-                    "messageId" => (string) $newMessageId
+                    "messageId" => (string) $newMessageId,
+                    "content" => [
+                        'conversationId' => $conversationId,
+                        'from' => $receiverId,
+                        'message' => $data['content'],
+                        'date' => $this->formatDate($now) // Conversión legible
+                    ]
                 ], 201);
             } else {
                 return HttpHelper::sendJsonResponse(["error" => "Error al enviar mensaje"], 500);
@@ -279,10 +448,12 @@ class Chat
             // Continuación del pipeline
             $pipeline = array_merge($pipeline, [
                 ['$limit' => $limit],
-                ['$group' => [
-                    '_id' => '$_id',
-                    'messages' => ['$push' => '$messages']
-                ]]
+                [
+                    '$group' => [
+                        '_id' => '$_id',
+                        'messages' => ['$push' => '$messages']
+                    ]
+                ]
             ]);
 
             // Ejecutar la consulta
@@ -293,7 +464,7 @@ class Chat
             if (!empty($result)) {
                 $messages = $result[0]['messages'] instanceof \MongoDB\Model\BSONArray
                     ? $result[0]['messages']->getArrayCopy()
-                    : (array)$result[0]['messages'];
+                    : (array) $result[0]['messages'];
             }
 
             // Formatear los mensajes
