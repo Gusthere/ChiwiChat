@@ -1,0 +1,6 @@
+[submodule "ChiwiWebsocket"]
+	path = ChiwiWebsocket
+	url = https://github.com/jugneyidk/ChiwiWebsocket.git
+[submodule "ChiwiCrypt"]
+	path = ChiwiCrypt
+	url = https://github.com/diegonoss/ChiwiCrypt.git
