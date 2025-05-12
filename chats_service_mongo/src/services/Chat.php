@@ -35,6 +35,7 @@ class Chat
     public function createConversation($data)
     {
         try {
+            // Validación extendida para incluir el mensaje inicial (opcional)
             v::arrayType()
                 ->key('userId', v::intVal()->positive()
                     ->setName('ID de usuario')
@@ -42,8 +43,10 @@ class Chat
                 ->key('username', v::alnum()->noWhitespace()->length(3, 30)
                     ->setName('Usuario')
                     ->setTemplate('{{name}} debe contener solo letras y números (3-30 caracteres)'))
+                ->key('initialMessage', v::optional(v::stringType()->notEmpty()), false)
                 ->assert($data);
 
+            // Verificar si ya existe una conversación entre estos usuarios
             $existingConversation = $this->conversationsCollection->findOne([
                 '$or' => [
                     ['user1Id' => (int) $this->userData['id'], 'user2Id' => (int) $data['userId']],
@@ -58,21 +61,90 @@ class Chat
                 ], 200);
             }
 
-            $insertResult = $this->conversationsCollection->insertOne([
+            // Preparar datos básicos de la conversación
+            $conversationData = [
                 'user1Id' => (int) $this->userData['id'],
                 'user1Username' => (string) $this->userData['username'],
                 'user2Id' => (int) $data['userId'],
                 'user2Username' => (string) $data['username'],
                 'updatedAt' => new UTCDateTime(),
                 'messages' => []
-            ]);
+            ];
+
+            // Si se proporciona un mensaje inicial, procesarlo
+            if (!empty($data['initialMessage'])) {
+                $newMessageId = new ObjectId();
+                $receiverId = (int) $data['userId'];
+                $messageContent = trim($data['initialMessage']);
+
+                // Encriptar el mensaje usando la API externa (misma lógica que sendMessage)
+                $thirdPartyApiUrl = Env::env("URL_CRYPTO") . '?action=encrypt';
+                $ch = curl_init($thirdPartyApiUrl);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+                    "senderId" => $this->userData['id'],
+                    "recipientId" => $receiverId,
+                    "message" => $messageContent
+                ]));
+                curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                    'Content-Type: application/json'
+                ]);
+
+                $response = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+
+                // Verificar respuesta de la API de encriptación
+                $decodedResponse = json_decode($response, true);
+                if (json_last_error() !== JSON_ERROR_NONE || !isset($decodedResponse['encryptedMessage'])) {
+                    return HttpHelper::sendJsonResponse(
+                        [
+                            "error" => "Error al encriptar el mensaje inicial",
+                            "detalles" => $decodedResponse ?? $response
+                        ],
+                        502
+                    );
+                }
+
+                $now = new UTCDateTime(); // Fecha actual en formato MongoDB
+
+                // Agregar el mensaje inicial a la conversación
+                $conversationData['messages'] = [
+                    [
+                        'messageId' => $newMessageId,
+                        'receiverId' => $receiverId,
+                        'encryptedContent' => $decodedResponse['encryptedMessage'],
+                        'sentAt' => $now,
+                        'status' => 0
+                    ]
+                ];
+            }
+
+            // Insertar la nueva conversación
+            $insertResult = $this->conversationsCollection->insertOne($conversationData);
 
             if ($insertResult->getInsertedCount() > 0) {
                 $conversationId = (string) $insertResult->getInsertedId();
-                return HttpHelper::sendJsonResponse([
+                $responseData = [
                     "mensaje" => "Conversación creada correctamente",
+                    'fromUsername' => (string) $this->userData['username'],
                     "conversationId" => $conversationId
-                ], 201);
+                ];
+
+                // Si hay mensaje inicial, agregar detalles al response
+                if (!empty($data['initialMessage'])) {
+                    $responseData['initialMessage'] = [
+                        'conversationId' => (string) $conversationId,
+                        'messageId' => (string) $newMessageId,
+                        'from' => $this->userData['id'],
+                        'fromUsername' => (string) $this->userData['username'],
+                        'message' => $messageContent,
+                        'date' => $this->formatDate($now)
+                    ];
+                }
+
+                return HttpHelper::sendJsonResponse($responseData, 201);
             } else {
                 return HttpHelper::sendJsonResponse(
                     ["error" => "Error al crear la conversación en MongoDB"],
@@ -309,7 +381,7 @@ class Chat
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
                 "senderId" => $this->userData['id'],
                 "recipientId" => $receiverId,
-                "message" => $data['content']
+                "message" => trim($data['content'])
             ]));
             curl_setopt($ch, CURLOPT_HTTPHEADER, [
                 'Content-Type: application/json'
@@ -371,7 +443,8 @@ class Chat
                     "mensaje" => "Mensaje enviado",
                     "messageId" => (string) $newMessageId,
                     "content" => [
-                        'conversationId' => $conversationId,
+                        'conversationId' => (string) $conversationId,
+                        "messageId" => (string) $newMessageId,
                         'from' => $receiverId,
                         'message' => $data['content'],
                         'date' => $this->formatDate($now) // Conversión legible
@@ -410,7 +483,6 @@ class Chat
             // Manejo del filtro por fecha
             $beforeDate = null;
             $messagesFilter = [];
-
             if (isset($requestData['beforeDate'])) {
                 try {
                     $beforeDate = new DateTime($requestData['beforeDate']);
@@ -425,7 +497,7 @@ class Chat
 
                     // Convertir a UTCDateTime para comparación exacta
                     $utcBeforeDate = new UTCDateTime($beforeDate);
-                    $messagesFilter = ['messages.sentAt' => ['$gt' => $utcBeforeDate]];
+                    $messagesFilter = ['messages.sentAt' => ['$lt' => $utcBeforeDate]];
                 } catch (\Exception $e) {
                     return HttpHelper::sendJsonResponse(
                         ["error" => "Formato de fecha inválido"],
@@ -445,7 +517,10 @@ class Chat
                 $pipeline[] = ['$match' => $messagesFilter];
             }
 
-            // Continuación del pipeline
+            // Ordenar por fecha descendente (más recientes primero)
+            $pipeline[] = ['$sort' => ['messages.sentAt' => -1]];
+
+            // Limitar y luego agrupar
             $pipeline = array_merge($pipeline, [
                 ['$limit' => $limit],
                 [
@@ -455,7 +530,6 @@ class Chat
                     ]
                 ]
             ]);
-
             // Ejecutar la consulta
             $result = $this->conversationsCollection->aggregate($pipeline)->toArray();
 
@@ -465,8 +539,14 @@ class Chat
                 $messages = $result[0]['messages'] instanceof \MongoDB\Model\BSONArray
                     ? $result[0]['messages']->getArrayCopy()
                     : (array) $result[0]['messages'];
+
+                // Reordenar los mensajes para que estén en orden cronológico ascendente
+                // usort($messages, function ($a, $b) {
+                //     return $a['sentAt'] <=> $b['sentAt'];
+                // });
             }
 
+            // Resto del código (formateo y llamada a la API de terceros)...
             // Formatear los mensajes
             $formattedMessages = array_map(function ($msg) {
                 return [
@@ -477,10 +557,10 @@ class Chat
                     'status' => $msg['status']
                 ];
             }, $messages);
+
             // Si hay mensajes, enviarlos a la API de terceros
             if (!empty($formattedMessages)) {
-                $thirdPartyApiUrl = Env::env("URL_CRYPTO") . '?action=decrypt'; // URL de ejemplo
-                // Configurar la petición cURL
+                $thirdPartyApiUrl = Env::env("URL_CRYPTO") . '?action=decrypt';
                 $ch = curl_init($thirdPartyApiUrl);
                 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
                 curl_setopt($ch, CURLOPT_POST, true);
@@ -489,26 +569,21 @@ class Chat
                     'Content-Type: application/json'
                 ]);
 
-                // Ejecutar la petición y obtener la respuesta
                 $response = curl_exec($ch);
                 $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
                 curl_close($ch);
 
-                // Verificar si la petición fue exitosa
-                // if ($httpCode === 200) {
                 $decodedResponse = json_decode($response, true);
-                // Caso 1: JSON inválido
                 if (json_last_error() !== JSON_ERROR_NONE) {
                     return HttpHelper::sendJsonResponse(
                         [
                             "error" => "La API de terceros devolvió un JSON inválido",
                             "detalles" => $response
                         ],
-                        502 // Bad Gateway
+                        502
                     );
                 }
 
-                // Caso 2: Falta la clave 'decryptedMessage'
                 if (!isset($decodedResponse['decryptedMessage'])) {
                     return HttpHelper::sendJsonResponse(
                         [
@@ -519,14 +594,7 @@ class Chat
                     );
                 }
 
-                // Éxito: Reemplazar mensajes cifrados por los descifrados
                 $formattedMessages = $decodedResponse['decryptedMessage'];
-                // } else {
-                //     return HttpHelper::sendJsonResponse([
-                //         "error" => "Error al desencriptar los mensajes",
-                //         "detalles" => [$response, "code" => $httpCode]
-                //     ], 500);
-                // }
             }
 
             return HttpHelper::sendJsonResponse([
