@@ -7,8 +7,6 @@ networks:
 volumes:
   db_users_server_data:
     driver: local
-  # db_chats_server_data:
-  #   driver: local
   mongodb_data:  # Nuevo volumen para MongoDB
     driver: local
 
@@ -36,30 +34,6 @@ services:
       timeout: 10s
       retries: 20
       start_period: 30s
-
-  # db_chats:
-  #   image: mysql:8.0
-  #   container_name: db_chats
-  #   restart: always
-  #   environment:
-  #     MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD_CHATS}
-  #     MYSQL_DATABASE: ${MYSQL_DATABASE_CHATS}
-  #     MYSQL_USER: ${MYSQL_USER_CHATS}
-  #     MYSQL_PASSWORD: ${MYSQL_PASSWORD_CHATS}
-  #   volumes:
-  #     - db_chats_server_data:/var/lib/mysql
-  #   ports:
-  #     - "${DB_CHATS_PORT:-3307}:3306"  # Usa 3307 como valor por defecto
-  #   networks:
-  #     chiwi_network:
-  #       aliases:
-  #         - db_chats
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "mysqladmin ping -uroot -p$${MYSQL_ROOT_PASSWORD_CHATS} --silent"]
-  #     interval: 5s
-  #     timeout: 10s
-  #     retries: 20
-  #     start_period: 30s
 
   mongodb:
     image: mongo:4.4
@@ -115,38 +89,6 @@ services:
       timeout: 5s
       retries: 5
     command: apache2-foreground  # Solo inicia Apache, sin migraciones automáticas
-
-  # chats_service:
-  #   build: 
-  #     context: ./chats_service
-  #     dockerfile: DockerFile
-  #   container_name: chats-service
-  #   restart: unless-stopped
-  #   volumes:
-  #     - ./chats_service:/var/www/html
-  #   environment:
-  #     - DB_HOST=db_chats
-  #     - DB_USER=root
-  #     - DB_PASSWORD=${MYSQL_ROOT_PASSWORD_CHATS}
-  #     - DB_DATABASE=${MYSQL_DATABASE_CHATS}
-  #     - DB_CHATS_PORT=3306
-  #     - APP_ENV=production
-  #     - APP_DEBUG=false
-  #   networks:
-  #     chiwi_network:
-  #       aliases:
-  #         - chats_service
-  #   ports:
-  #     - "8889:80"
-  #   depends_on:
-  #     db_chats:
-  #       condition: service_healthy
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost/health"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #   command: apache2-foreground  # Solo inicia Apache, sin migraciones automáticas
   
   chats_service_mongo:
     build: 
@@ -180,25 +122,3 @@ services:
       timeout: 5s
       retries: 5
     command: apache2-foreground
-
-#  encrypt_service:
-#    build: 
-#      context: ./encrypt_service
-#      dockerfile: DockerFile
-#    container_name: encrypt-service
-#    ports:
-#      - "8900:90"  # Puerto diferente al original
-#    restart: always
-#    networks:
-#      chiwi_network:
-#        aliases:
-#          - encrypt_service
-#    volumes:
-#      - ./encrypt_service:/var/www/html  # Crea esta carpeta
-#    environment:
-#      - ENCRYPTION_MASTER_KEY=PARALELEPIPEDO
-#      - KEYS_DIRECTORY=/keys/
-#      - OPENSSL_DIR=/etc/ssl/openssl.cnf
-#      - APACHE_RUN_USER=www-data
-#      - APACHE_RUN_GROUP=www-data
-#    env_file: ".env"
