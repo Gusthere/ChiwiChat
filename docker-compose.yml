@@ -16,20 +16,16 @@ services:
     container_name: db_users
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD_USERS}
-      MYSQL_DATABASE: ${MYSQL_DATABASE_USERS}
-      MYSQL_USER: ${MYSQL_USER_USERS}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD_USERS}
+      MYSQL_ROOT_PASSWORD: Chiwineitor
+      MYSQL_DATABASE: users_db
     volumes:
       - db_users_server_data:/var/lib/mysql
-    ports:
-      - "${DB_USERS_PORT:-3306}:3306"
     networks:
       chiwi_network:
         aliases:
           - db_users
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -uroot -p$${MYSQL_ROOT_PASSWORD_USERS} --silent"]
+      test: ["CMD-SHELL", "mysqladmin ping -uroot -p$Chiwineitor --silent"]
       interval: 5s
       timeout: 10s
       retries: 20
@@ -44,8 +40,6 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ChiwireadorMongo  # Cambia esto por tu contraseña
     volumes:
       - mongodb_data:/data/db
-    ports:
-      - "27017:27017"
     networks:
       chiwi_network:
         aliases:
@@ -57,9 +51,7 @@ services:
       retries: 5
 
   usuarios_service:
-    build: 
-      context: ./usuarios_service
-      dockerfile: DockerFile
+    image: gusher/chiwichat:usuarios-latest  # Usando la imagen de Docker Hub
     container_name: usuarios-service
     restart: unless-stopped
     volumes:
@@ -67,10 +59,10 @@ services:
     environment:
       - DB_HOST=db_users
       - DB_USER=root
-      - DB_PASSWORD=${MYSQL_ROOT_PASSWORD_USERS}
-      - DB_DATABASE=${MYSQL_DATABASE_USERS}
+      - DB_PASSWORD=Chiwineitor
+      - DB_DATABASE=users_db
       - DB_USERS_PORT=3306  
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET=DiosMioLaUPTAEBEstaAcabandoConmigo
       - APP_ENV=production
       - APP_DEBUG=false
       - URL_CRYPTO=http://chiwicrypt:80/
@@ -78,8 +70,6 @@ services:
       chiwi_network:
         aliases:
           - usuarios_service
-    ports:
-      - "8888:80"
     depends_on:
       - db_users
       
@@ -88,12 +78,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    command: apache2-foreground  # Solo inicia Apache, sin migraciones automáticas
-  
+    command: apache2-foreground
+
   chats_service_mongo:
-    build: 
-      context: ./chats_service_mongo
-      dockerfile: DockerFile
+    image: gusher/chiwichat:chats-latest    # Usando la imagen de Docker Hub
     container_name: chats-service-mongo
     restart: always
     volumes:
@@ -102,8 +90,8 @@ services:
       - DB_TYPE=mongodb  # Nueva variable para identificar el tipo de DB
       - MONGO_HOST=mongodb
       - MONGO_USER=root
-      - MONGO_PASSWORD=${MONGO_ROOT_PASSWORD}
-      - MONGO_DATABASE=${MONGO_DATABASE}
+      - MONGO_PASSWORD=ChiwireadorMongo
+      - MONGO_DATABASE=chats_mongo
       - APP_ENV=production
       - APP_DEBUG=false
       - URL_CRYPTO=http://chiwicrypt:80/
@@ -111,8 +99,6 @@ services:
       chiwi_network:
         aliases:
           - chats_service_mongo
-    ports:
-      - "8890:80"  # Puerto diferente al original
     depends_on:
       - mongodb
 
@@ -122,3 +108,19 @@ services:
       timeout: 5s
       retries: 5
     command: apache2-foreground
+
+  chiwicrypt:
+    image: gusher/chiwichat:encrypt-latest  # Usando la imagen de Docker Hub
+    restart: always
+    networks:
+      - chiwi_network
+    volumes:
+      # Los volúmenes deben estar bajo cada servicio
+      - ./ChiwiCrypt:/var/www/html
+    environment:
+      # Opcional si ya usas env_file
+      - APACHE_RUN_USER=www-data
+      - APACHE_RUN_GROUP=www-data
+      - ENCRYPTION_MASTER_KEY=PARALELEPIPEDO
+      - KEYS_DIRECTORY=/keys/
+      - OPENSSL_DIR=/etc/ssl/openssl.cnf
